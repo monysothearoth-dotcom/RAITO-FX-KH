@@ -1,5 +1,69 @@
 {
   "version": "7",
   "dialect": "mysql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1786643653220,
+      "tag": "0000_perfect_havok",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1786644525523,
+      "tag": "0001_skinny_spectrum",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1787045414509,
+      "tag": "0002_confused_blonde_phantom",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1787049035267,
+      "tag": "0003_panoramic_praxagora",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1787063098544,
+      "tag": "0004_overrated_shatterstar",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1787063508960,
+      "tag": "0005_supreme_lyja",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1787070005523,
+      "tag": "0006_rare_bruce_banner",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1787080791182,
+      "tag": "0007_fair_morph",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1787130622245,
+      "tag": "0008_chemical_starfox",
+      "breakpoints": true
+    }
+  ]
 }

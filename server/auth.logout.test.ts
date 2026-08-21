@@ -59,4 +59,13 @@ describe("auth.logout", () => {
       path: "/",
     });
   });
+
+  it("moves the next request to an unauthenticated context after logout", async () => {
+    const { ctx, clearedCookies } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+    await expect(caller.auth.logout()).resolves.toEqual({ success: true });
+    expect(clearedCookies[0]?.name).toBe(COOKIE_NAME);
+    const anonymousCaller = appRouter.createCaller({ ...ctx, user: null });
+    await expect(anonymousCaller.paperTrades.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
 });

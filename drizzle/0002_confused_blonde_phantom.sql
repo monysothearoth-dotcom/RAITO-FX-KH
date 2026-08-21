@@ -1,0 +1,22 @@
+CREATE TABLE `paper_trades` (
+	`id` int AUTO_INCREMENT NOT NULL,
+	`userId` int NOT NULL,
+	`symbol` varchar(64) NOT NULL,
+	`direction` enum('BUY','SELL') NOT NULL,
+	`strategy` varchar(128) NOT NULL,
+	`provider` varchar(64),
+	`setupScore` double,
+	`entryPrice` double NOT NULL,
+	`stopLoss` double NOT NULL,
+	`takeProfit` double NOT NULL,
+	`size` double NOT NULL DEFAULT 1,
+	`status` enum('OPEN','TARGET_HIT','STOPPED_OUT','CLOSED','CANCELLED') NOT NULL DEFAULT 'OPEN',
+	`closePrice` double,
+	`pnlPercent` double,
+	`pnlAmount` double,
+	`rationale` text,
+	`openedAt` timestamp NOT NULL DEFAULT (now()),
+	`closedAt` timestamp,
+	`updatedAt` timestamp NOT NULL DEFAULT (now()) ON UPDATE CURRENT_TIMESTAMP,
+	CONSTRAINT `paper_trades_id` PRIMARY KEY(`id`)
+);

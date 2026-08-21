@@ -1,7 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users } from "../drizzle/schema";
+import { InsertUser, users, portfolioHoldings, tradeJournalEntries, priceAlerts, paperTrades, telegramNewsDeliveries, telegramNewsSettings, newsEffectTracking } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { notifyOwner } from './_core/notification';
+import { getTelegramHealthTransition, getTelegramNotificationPlan } from './telegramNews';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -89,4 +91,242 @@ export async function getUserByOpenId(openId: string) {
   return result.length > 0 ? result[0] : undefined;
 }
 
-// TODO: add feature queries here as your schema grows.
+export async function getUserById(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+}
+
+export async function updateUserProfile(userId: number, input: { displayName?: string | null; timezone?: string; defaultView?: string; theme?: "dark" | "light" | "system" }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(users).set(input).where(eq(users.id, userId));
+  return (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+}
+
+export async function createNewsEffectTracking(userId: number, input: Omit<typeof newsEffectTracking.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt" | "outcome" | "currentPrice" | "movementPercent" | "actualEffect" | "evaluatedAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(newsEffectTracking).values({ userId, ...input, outcome: "PENDING" }).onDuplicateKeyUpdate({ set: { updatedAt: new Date() } });
+  return listNewsEffectTracking(userId);
+}
+
+export async function listNewsEffectTracking(userId: number) {
+  const db = await getDb();
+  return db ? db.select().from(newsEffectTracking).where(eq(newsEffectTracking.userId, userId)).orderBy(desc(newsEffectTracking.createdAt)).limit(200) : [];
+}
+
+export async function updateNewsEffectTracking(userId: number, id: number, input: { currentPrice?: number | null; movementPercent?: number | null; actualEffect?: "BUY" | "SELL" | "NORMAL" | null; outcome: "PENDING" | "CORRECT" | "INCORRECT" | "NEUTRAL" | "UNAVAILABLE"; evaluatedAt?: Date | null }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(newsEffectTracking).set(input).where(and(eq(newsEffectTracking.id, id), eq(newsEffectTracking.userId, userId)));
+  return listNewsEffectTracking(userId);
+}
+
+export async function getUserNewsEffectTrackingSummary(userId: number) {
+  const rows = await listNewsEffectTracking(userId);
+  const resolved = rows.filter((row) => row.outcome !== "PENDING" && row.outcome !== "UNAVAILABLE");
+  const correct = rows.filter((row) => row.outcome === "CORRECT").length;
+  const incorrect = rows.filter((row) => row.outcome === "INCORRECT").length;
+  const neutral = rows.filter((row) => row.outcome === "NEUTRAL").length;
+  return { total: rows.length, pending: rows.filter((row) => row.outcome === "PENDING").length, unavailable: rows.filter((row) => row.outcome === "UNAVAILABLE").length, correct, incorrect, neutral, accuracy: resolved.length ? Number(((correct / resolved.length) * 100).toFixed(1)) : 0 };
+}
+
+export async function getUserAccountExport(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const user = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
+  if (!user) return undefined;
+    const [portfolio, journal, trades, alerts, telegramSettings, telegramDeliveries, newsEffects] = await Promise.all([
+    db.select().from(portfolioHoldings).where(eq(portfolioHoldings.userId, userId)),
+    db.select().from(tradeJournalEntries).where(eq(tradeJournalEntries.userId, userId)),
+    db.select().from(paperTrades).where(eq(paperTrades.userId, userId)),
+    db.select().from(priceAlerts).where(eq(priceAlerts.userId, userId)),
+    db.select().from(telegramNewsSettings).where(eq(telegramNewsSettings.userId, userId)),
+    db.select().from(telegramNewsDeliveries).where(eq(telegramNewsDeliveries.userId, userId)),
+    db.select().from(newsEffectTracking).where(eq(newsEffectTracking.userId, userId)),
+  ]);
+  return { exportedAt: new Date().toISOString(), user: { id: user.id, openId: user.openId, name: user.name, displayName: user.displayName, email: user.email, loginMethod: user.loginMethod, timezone: user.timezone, defaultView: user.defaultView, theme: user.theme, createdAt: user.createdAt, updatedAt: user.updatedAt, lastSignedIn: user.lastSignedIn }, portfolio, journal, paperTrades: trades, alerts, telegramSettings, telegramDeliveries, newsEffects };
+}
+
+export async function deleteUserAccount(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.transaction(async (tx) => {
+    await tx.delete(newsEffectTracking).where(eq(newsEffectTracking.userId, userId));
+    await tx.delete(telegramNewsDeliveries).where(eq(telegramNewsDeliveries.userId, userId));
+    await tx.delete(telegramNewsSettings).where(eq(telegramNewsSettings.userId, userId));
+    await tx.delete(priceAlerts).where(eq(priceAlerts.userId, userId));
+    await tx.delete(paperTrades).where(eq(paperTrades.userId, userId));
+    await tx.delete(tradeJournalEntries).where(eq(tradeJournalEntries.userId, userId));
+    await tx.delete(portfolioHoldings).where(eq(portfolioHoldings.userId, userId));
+    await tx.delete(users).where(eq(users.id, userId));
+  });
+  return { deleted: true as const };
+}
+
+export async function listPortfolioHoldings(userId: number) {
+  const db = await getDb();
+  return db ? db.select().from(portfolioHoldings).where(eq(portfolioHoldings.userId, userId)) : [];
+}
+
+export async function upsertPortfolioHolding(userId: number, input: { symbol: string; quantity: number; averagePrice: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(portfolioHoldings).values({ userId, ...input });
+  return listPortfolioHoldings(userId);
+}
+
+export async function listTradeJournalEntries(userId: number) {
+  const db = await getDb();
+  return db ? db.select().from(tradeJournalEntries).where(eq(tradeJournalEntries.userId, userId)) : [];
+}
+
+export async function createTradeJournalEntry(userId: number, input: Omit<typeof tradeJournalEntries.$inferInsert, "id" | "userId" | "createdAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(tradeJournalEntries).values({ userId, ...input });
+  return listTradeJournalEntries(userId);
+}
+
+export async function listPaperTrades(userId: number) {
+  const db = await getDb();
+  return db ? db.select().from(paperTrades).where(eq(paperTrades.userId, userId)) : [];
+}
+
+export async function createPaperTrade(userId: number, input: Omit<typeof paperTrades.$inferInsert, "id" | "userId" | "openedAt" | "updatedAt" | "status" | "closedAt" | "closePrice" | "pnlPercent" | "pnlAmount">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(paperTrades).values({ userId, status: "OPEN", ...input });
+  return listPaperTrades(userId);
+}
+
+export function canClosePaperTrade(tradeOwnerId: number, requesterId: number) {
+  return tradeOwnerId === requesterId;
+}
+
+export async function closePaperTrade(userId: number, tradeId: number, input: { status: "TARGET_HIT" | "STOPPED_OUT" | "CLOSED"; closePrice: number; pnlPercent: number; pnlAmount?: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(paperTrades).set({ ...input, closedAt: new Date() }).where(and(eq(paperTrades.id, tradeId), eq(paperTrades.userId, userId)));
+  return listPaperTrades(userId);
+}
+
+export async function summarizePaperTrades(userId: number) {
+  const trades = await listPaperTrades(userId);
+  const closed = trades.filter((trade) => trade.status !== "OPEN" && trade.status !== "CANCELLED");
+  const wins = closed.filter((trade) => Number(trade.pnlPercent || 0) > 0);
+  const losses = closed.filter((trade) => Number(trade.pnlPercent || 0) < 0);
+  const totalPnlPercent = closed.reduce((sum, trade) => sum + Number(trade.pnlPercent || 0), 0);
+  return { total: trades.length, open: trades.filter((trade) => trade.status === "OPEN").length, closed: closed.length, wins: wins.length, losses: losses.length, winRate: closed.length ? Number(((wins.length / closed.length) * 100).toFixed(1)) : 0, totalPnlPercent: Number(totalPnlPercent.toFixed(2)), averagePnlPercent: closed.length ? Number((totalPnlPercent / closed.length).toFixed(2)) : 0 };
+}
+
+export async function listPriceAlerts(userId: number) {
+  const db = await getDb();
+  return db ? db.select().from(priceAlerts).where(eq(priceAlerts.userId, userId)) : [];
+}
+
+export async function createPriceAlert(userId: number, input: Omit<typeof priceAlerts.$inferInsert, "id" | "userId" | "createdAt" | "isTriggered">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(priceAlerts).values({ userId, isTriggered: 0, ...input });
+  return listPriceAlerts(userId);
+}
+
+export async function getTelegramNewsSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(telegramNewsSettings).where(eq(telegramNewsSettings.userId, userId)).limit(1))[0];
+}
+
+export async function enableTelegramNewsSettings(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(telegramNewsSettings).values({ userId, isEnabled: 1 }).onDuplicateKeyUpdate({ set: { isEnabled: 1, lastError: null } });
+  return getTelegramNewsSettings(userId);
+}
+
+export async function disableTelegramNewsSettings(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(telegramNewsSettings).set({ isEnabled: 0 }).where(eq(telegramNewsSettings.userId, userId));
+  return getTelegramNewsSettings(userId);
+}
+
+export async function updateTelegramHighImpactSettings(userId: number, input: { enabled: boolean; leadMinutes: number; instruments: string[] }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const values = {
+    userId,
+    isEnabled: 0,
+    highImpactAlertsEnabled: input.enabled ? 1 : 0,
+    highImpactLeadMinutes: Math.max(1, Math.min(60, Math.round(input.leadMinutes))),
+    highImpactInstruments: input.instruments.join(",").slice(0, 512),
+  };
+  await db.insert(telegramNewsSettings).values(values).onDuplicateKeyUpdate({ set: { highImpactAlertsEnabled: values.highImpactAlertsEnabled, highImpactLeadMinutes: values.highImpactLeadMinutes, highImpactInstruments: values.highImpactInstruments } });
+  return getTelegramNewsSettings(userId);
+}
+
+export async function saveTelegramScheduleTask(userId: number, taskUid: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(telegramNewsSettings).set({ scheduleCronTaskUid: taskUid }).where(eq(telegramNewsSettings.userId, userId));
+  return getTelegramNewsSettings(userId);
+}
+
+export async function findTelegramSettingsByTaskUid(taskUid: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(telegramNewsSettings).where(eq(telegramNewsSettings.scheduleCronTaskUid, taskUid)).limit(1))[0];
+}
+
+export async function listTelegramNewsDeliveries(userId: number) {
+  const db = await getDb();
+  return db ? db.select().from(telegramNewsDeliveries).where(eq(telegramNewsDeliveries.userId, userId)).limit(500) : [];
+}
+
+export async function recordTelegramNewsDeliveries(userId: number, deliveries: Array<{ fingerprint: string; title: string; url?: string; category: "forex" | "crypto"; source?: string }>) {
+  const db = await getDb();
+  if (!db || !deliveries.length) return;
+  for (const delivery of deliveries) {
+    await db.insert(telegramNewsDeliveries).values({ userId, ...delivery }).onDuplicateKeyUpdate({ set: { title: delivery.title, url: delivery.url ?? null, source: delivery.source ?? null } });
+  }
+}
+
+export async function markTelegramNewsRun(userId: number, input: { success: boolean; error?: string | null; sent?: number; skipped?: number; sourceFailures?: string[] }) {
+  const db = await getDb();
+  if (!db) return { outageStarted: false, recovered: false, consecutiveFailureCount: 0 };
+  const current = await getTelegramNewsSettings(userId);
+  const transition = getTelegramHealthTransition(current, { ...input, error: input.error ?? undefined });
+  const { sourceFailures, unhealthy, consecutiveFailureCount, outageStarted, recovered, error } = transition;
+  await db.update(telegramNewsSettings).set({
+    lastRunAt: new Date(),
+    lastSuccessAt: unhealthy ? undefined : new Date(),
+    lastError: error?.slice(0, 512) ?? null,
+    runCount: sql`${telegramNewsSettings.runCount} + 1`,
+    successfulRunCount: unhealthy ? undefined : sql`${telegramNewsSettings.successfulRunCount} + 1`,
+    failedRunCount: unhealthy ? sql`${telegramNewsSettings.failedRunCount} + 1` : undefined,
+    consecutiveFailureCount,
+    totalSent: sql`${telegramNewsSettings.totalSent} + ${Number(input.sent || 0)}`,
+    totalSkipped: sql`${telegramNewsSettings.totalSkipped} + ${Number(input.skipped || 0)}`,
+    sourceFailures: sourceFailures.length ? sourceFailures.join(", ").slice(0, 512) : null,
+    outageActive: unhealthy ? (outageStarted || Number(current?.outageActive || 0) ? 1 : 0) : 0,
+  }).where(eq(telegramNewsSettings.userId, userId));
+
+  const notification = getTelegramNotificationPlan(current, { outageStarted, recovered, consecutiveFailureCount, error });
+
+  if (notification) {
+    let delivered = false;
+    try {
+      delivered = await notifyOwner({ title: notification.title, content: notification.content });
+    } catch {
+      delivered = false;
+    }
+    if (delivered) {
+      await db.update(telegramNewsSettings).set({ pendingNotificationType: null, pendingNotificationContent: null, notificationAttemptCount: 0, lastNotificationError: null }).where(eq(telegramNewsSettings.userId, userId));
+    } else {
+      await db.update(telegramNewsSettings).set({ pendingNotificationType: notification.type, pendingNotificationContent: notification.content.slice(0, 1024), notificationAttemptCount: sql`${telegramNewsSettings.notificationAttemptCount} + 1`, lastNotificationError: "Owner notification service unavailable" }).where(eq(telegramNewsSettings.userId, userId));
+    }
+  }
+  return { outageStarted, recovered, consecutiveFailureCount, notificationPending: Boolean(notification) };
+}
