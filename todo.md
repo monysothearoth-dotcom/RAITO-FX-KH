@@ -5,4 +5,5 @@
 - [x] Review configuration, database schema, scheduled delivery integration, and required runtime secrets.
 - [x] Run type checking, unit tests, and production build; resolve any application issues found.
 - [x] Verify the principal application interface in the live development preview.
-- [ ] Save a versioned project checkpoint and provide launch guidance.
+- [x] Save a versioned project checkpoint and provide launch guidance.
+- [x] Provide concise launch guidance covering the build and start commands, secret configuration, database migrations, OAuth, and scheduled Telegram delivery.
