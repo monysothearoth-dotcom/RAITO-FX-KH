@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, portfolioHoldings, tradeJournalEntries, priceAlerts, paperTrades, telegramNewsDeliveries, telegramNewsSettings, newsEffectTracking } from "../drizzle/schema";
+import { InsertUser, users, portfolioHoldings, tradeJournalEntries, priceAlerts, paperTrades, telegramNewsDeliveries, telegramNewsSettings, newsEffectTracking, autoSignalDeliveries, autoSignalSettings, autoSignals } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { notifyOwner } from './_core/notification';
 import { getTelegramHealthTransition, getTelegramNotificationPlan } from './telegramNews';
@@ -137,7 +137,7 @@ export async function getUserAccountExport(userId: number) {
   if (!db) throw new Error("Database is not available");
   const user = (await db.select().from(users).where(eq(users.id, userId)).limit(1))[0];
   if (!user) return undefined;
-    const [portfolio, journal, trades, alerts, telegramSettings, telegramDeliveries, newsEffects] = await Promise.all([
+    const [portfolio, journal, trades, alerts, telegramSettings, telegramDeliveries, newsEffects, signalSettings, signals, signalDeliveries] = await Promise.all([
     db.select().from(portfolioHoldings).where(eq(portfolioHoldings.userId, userId)),
     db.select().from(tradeJournalEntries).where(eq(tradeJournalEntries.userId, userId)),
     db.select().from(paperTrades).where(eq(paperTrades.userId, userId)),
@@ -145,14 +145,20 @@ export async function getUserAccountExport(userId: number) {
     db.select().from(telegramNewsSettings).where(eq(telegramNewsSettings.userId, userId)),
     db.select().from(telegramNewsDeliveries).where(eq(telegramNewsDeliveries.userId, userId)),
     db.select().from(newsEffectTracking).where(eq(newsEffectTracking.userId, userId)),
+    db.select().from(autoSignalSettings).where(eq(autoSignalSettings.userId, userId)),
+    db.select().from(autoSignals).where(eq(autoSignals.userId, userId)),
+    db.select().from(autoSignalDeliveries).where(eq(autoSignalDeliveries.userId, userId)),
   ]);
-  return { exportedAt: new Date().toISOString(), user: { id: user.id, openId: user.openId, name: user.name, displayName: user.displayName, email: user.email, loginMethod: user.loginMethod, timezone: user.timezone, defaultView: user.defaultView, theme: user.theme, createdAt: user.createdAt, updatedAt: user.updatedAt, lastSignedIn: user.lastSignedIn }, portfolio, journal, paperTrades: trades, alerts, telegramSettings, telegramDeliveries, newsEffects };
+  return { exportedAt: new Date().toISOString(), user: { id: user.id, openId: user.openId, name: user.name, displayName: user.displayName, email: user.email, loginMethod: user.loginMethod, timezone: user.timezone, defaultView: user.defaultView, theme: user.theme, createdAt: user.createdAt, updatedAt: user.updatedAt, lastSignedIn: user.lastSignedIn }, portfolio, journal, paperTrades: trades, alerts, telegramSettings, telegramDeliveries, newsEffects, autoSignalSettings: signalSettings, autoSignals: signals, autoSignalDeliveries: signalDeliveries };
 }
 
 export async function deleteUserAccount(userId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
   await db.transaction(async (tx) => {
+    await tx.delete(autoSignalDeliveries).where(eq(autoSignalDeliveries.userId, userId));
+    await tx.delete(autoSignals).where(eq(autoSignals.userId, userId));
+    await tx.delete(autoSignalSettings).where(eq(autoSignalSettings.userId, userId));
     await tx.delete(newsEffectTracking).where(eq(newsEffectTracking.userId, userId));
     await tx.delete(telegramNewsDeliveries).where(eq(telegramNewsDeliveries.userId, userId));
     await tx.delete(telegramNewsSettings).where(eq(telegramNewsSettings.userId, userId));
@@ -329,4 +335,122 @@ export async function markTelegramNewsRun(userId: number, input: { success: bool
     }
   }
   return { outageStarted, recovered, consecutiveFailureCount, notificationPending: Boolean(notification) };
+}
+
+export async function getAutoSignalSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(autoSignalSettings).where(eq(autoSignalSettings.userId, userId)).limit(1))[0];
+}
+
+export async function findAutoSignalSettingsByTaskUid(taskUid: string) {
+  const db = await getDb();
+  if (!db) return undefined;
+  return (await db.select().from(autoSignalSettings).where(eq(autoSignalSettings.scheduleCronTaskUid, taskUid)).limit(1))[0];
+}
+
+export async function enableAutoSignalSettings(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(autoSignalSettings).values({ userId, isEnabled: 1 }).onDuplicateKeyUpdate({ set: { isEnabled: 1, lastError: null } });
+  return getAutoSignalSettings(userId);
+}
+
+export async function disableAutoSignalSettings(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(autoSignalSettings).set({ isEnabled: 0 }).where(eq(autoSignalSettings.userId, userId));
+  return getAutoSignalSettings(userId);
+}
+
+export async function updateAutoSignalThresholds(userId: number, input: { minConfidence: number; minScore: number; minRiskReward: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const values = { userId, isEnabled: 0, minConfidence: Math.round(input.minConfidence), minScore: Math.round(input.minScore), minRiskReward: input.minRiskReward };
+  await db.insert(autoSignalSettings).values(values).onDuplicateKeyUpdate({ set: { minConfidence: values.minConfidence, minScore: values.minScore, minRiskReward: values.minRiskReward } });
+  return getAutoSignalSettings(userId);
+}
+
+export async function saveAutoSignalScheduleTask(userId: number, taskUid: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(autoSignalSettings).set({ scheduleCronTaskUid: taskUid }).where(eq(autoSignalSettings.userId, userId));
+  return getAutoSignalSettings(userId);
+}
+
+export async function markAutoSignalRun(userId: number, error?: string | null) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(autoSignalSettings).set({ lastRunAt: new Date(), lastError: error?.slice(0, 512) ?? null }).where(eq(autoSignalSettings.userId, userId));
+}
+
+export async function listAutoSignals(userId?: number) {
+  const db = await getDb();
+  if (!db) return [];
+  const query = db.select().from(autoSignals).orderBy(desc(autoSignals.openedAt)).limit(120);
+  return userId ? db.select().from(autoSignals).where(eq(autoSignals.userId, userId)).orderBy(desc(autoSignals.openedAt)).limit(120) : query;
+}
+
+export async function listOpenAutoSignals(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.status, "OPEN"))).orderBy(desc(autoSignals.openedAt)).limit(40);
+}
+
+export async function createAutoSignal(userId: number, input: Omit<typeof autoSignals.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt" | "openedAt" | "resolvedAt" | "outcomePrice" | "outcomeDetails" | "lastEvaluatedAt">) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  const existing = (await db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.fingerprint, input.fingerprint))).limit(1))[0];
+  if (existing) return { signal: existing, created: false };
+  await db.insert(autoSignals).values({ userId, ...input });
+  const signal = (await db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.fingerprint, input.fingerprint))).limit(1))[0];
+  if (!signal) throw new Error("Auto signal was not persisted");
+  return { signal, created: true };
+}
+
+export async function resolveAutoSignal(userId: number, signalId: number, input: { status: "TP_HIT" | "SL_HIT"; outcomePrice: number; outcomeDetails: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(autoSignals).set({ ...input, resolvedAt: new Date(), lastEvaluatedAt: new Date() }).where(and(eq(autoSignals.id, signalId), eq(autoSignals.userId, userId), eq(autoSignals.status, "OPEN")));
+  return (await db.select().from(autoSignals).where(and(eq(autoSignals.id, signalId), eq(autoSignals.userId, userId))).limit(1))[0];
+}
+
+export async function touchAutoSignal(userId: number, signalId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(autoSignals).set({ lastEvaluatedAt: new Date() }).where(and(eq(autoSignals.id, signalId), eq(autoSignals.userId, userId), eq(autoSignals.status, "OPEN")));
+}
+
+export async function listPendingAutoSignalDeliveries(userId: number) {
+  const [signals, deliveries] = await Promise.all([listAutoSignals(userId), listAutoSignalDeliveries(userId)]);
+  const delivered = new Set(deliveries.map((delivery) => `${delivery.signalId}:${delivery.deliveryType}`));
+  return signals.flatMap((signal) => {
+    const types: Array<"SIGNAL" | "OUTCOME"> = signal.status === "OPEN" ? ["SIGNAL"] : ["SIGNAL", "OUTCOME"];
+    return types.filter((type) => !delivered.has(`${signal.id}:${type}`)).map((deliveryType) => ({ signal, deliveryType }));
+  });
+}
+
+export async function listAutoSignalDeliveries(userId: number) {
+  const db = await getDb();
+  return db ? db.select().from(autoSignalDeliveries).where(eq(autoSignalDeliveries.userId, userId)).orderBy(desc(autoSignalDeliveries.deliveredAt)).limit(500) : [];
+}
+
+export async function getAutoSignalDeliveryHealth(userId: number) {
+  const [signals, deliveries] = await Promise.all([listAutoSignals(userId), listAutoSignalDeliveries(userId)]);
+  const delivered = new Set(deliveries.map((delivery) => `${delivery.signalId}:${delivery.deliveryType}`));
+  const expected = signals.flatMap((signal) => signal.status === "OPEN" ? [`${signal.id}:SIGNAL`] : [`${signal.id}:SIGNAL`, `${signal.id}:OUTCOME`]);
+  return {
+    signals: signals.length,
+    open: signals.filter((signal) => signal.status === "OPEN").length,
+    signalDeliveries: deliveries.filter((delivery) => delivery.deliveryType === "SIGNAL").length,
+    outcomeDeliveries: deliveries.filter((delivery) => delivery.deliveryType === "OUTCOME").length,
+    pending: expected.filter((key) => !delivered.has(key)).length,
+    lastDeliveredAt: deliveries[0]?.deliveredAt ?? null,
+  };
+}
+
+export async function recordAutoSignalDelivery(userId: number, signalId: number, deliveryType: "SIGNAL" | "OUTCOME") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.insert(autoSignalDeliveries).values({ userId, signalId, deliveryType }).onDuplicateKeyUpdate({ set: { deliveredAt: new Date() } });
 }

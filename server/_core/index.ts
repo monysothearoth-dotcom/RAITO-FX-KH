@@ -13,7 +13,8 @@ import { callWithProviderFallback, parseStructuredAiJson } from "../aiFallback";
 import { GEMINI_GENERATE_URL, GEMINI_MODEL } from "../aiConfig";
 import { normalizeSignalPayload } from "../signal";
 import { buildMarketWatchConsensus, buildMarketWatchValidationPrompt, inferWatchDomain, type WatchCandidate } from "../marketWatch";
-import { findTelegramSettingsByTaskUid, listTelegramNewsDeliveries, markTelegramNewsRun, recordTelegramNewsDeliveries } from "../db";
+import { createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalRun, markTelegramNewsRun, recordAutoSignalDelivery, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
+import { fetchAutoSignalHistoricalCloses, runAutoSignalMonitor } from "../autoSignal";
 import { runScheduledTelegramDelivery, sendTelegramNewsMessage, telegramNewsFingerprint, type TelegramNewsFetchResult, type TelegramNewsItem } from "../telegramNews";
 import { translateTelegramNewsItemsToKhmer } from "../telegramTranslation";
 import { analyzeNewsEffect, buildPreReleaseSignals, fetchPublicEconomicCalendar, filterPreReleaseSignals, formatPreReleaseSignalMessage, highImpactSignalFingerprint, selectUndeliveredPreReleaseSignals } from "../highImpactNews";
@@ -431,6 +432,33 @@ async function startServer() {
     } catch (error) {
       const message = error instanceof Error ? error.message : "Telegram news delivery failed";
       console.error("[TelegramNews] scheduled delivery failed", message);
+      return res.status(500).json({ error: message, timestamp: new Date().toISOString() });
+    }
+  });
+
+  app.post("/api/scheduled/auto-signal-monitor", async (req, res) => {
+    try {
+      const cronUser = await sdk.authenticateRequest(req);
+      if (!cronUser.isCron || !cronUser.taskUid) return res.status(403).json({ error: "cron-only" });
+      const settings = await findAutoSignalSettingsByTaskUid(cronUser.taskUid);
+      const result = await runAutoSignalMonitor({
+        settings,
+        fetchPrices: fetchLiveMarketPrices,
+        fetchHistorical: fetchAutoSignalHistoricalCloses,
+        fetchCalendar: fetchPublicEconomicCalendar,
+        listOpen: listOpenAutoSignals,
+        create: createAutoSignal,
+        resolve: resolveAutoSignal,
+        touch: touchAutoSignal,
+        listDeliveryQueue: listPendingAutoSignalDeliveries,
+        send: (text) => sendTelegramNewsMessage(ENV.telegramBotToken, ENV.telegramChatId, text),
+        recordDelivery: recordAutoSignalDelivery,
+        markRun: markAutoSignalRun,
+      });
+      return res.json(result);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Auto Signal Analyze monitor failed";
+      console.error("[AutoSignal] scheduled monitor failed", message);
       return res.status(500).json({ error: message, timestamp: new Date().toISOString() });
     }
   });

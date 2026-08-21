@@ -24,3 +24,16 @@ For either approach, first test sign-in, user-scoped database writes, the Buy/Se
 ## Ready-to-Publish Status
 
 The workspace passed TypeScript checking, **94 regression tests**, the production build, credential validation, and responsive desktop/mobile preview smoke tests. The production build emitted a chunk-size advisory for the JavaScript bundle; it does not prevent startup, but future work can use route-level lazy loading if initial-load performance needs improvement.
+
+## Operating Auto Signal Analyze
+
+Auto Signal Analyze is an owner-controlled feature. After publishing the current checkpoint, sign in using the configured project-owner account, open **Auto Signal Analyze** beside **Markets & Chart**, adjust the inspectable confidence, confluence, and risk/reward thresholds if needed, and select **Enable monitoring**. The feature uses the existing Telegram bot and destination settings; it cannot be enabled when either Telegram credential is unavailable.
+
+| Operational control | Behavior |
+|---|---|
+| Enable monitoring | Creates or resumes a protected recurring monitor that calls `/api/scheduled/auto-signal-monitor` every 60 seconds. It watches XAU/USD and BTC/USD, fetches historical context for indicator alignment, suppresses setups below the configured thresholds, and separately evaluates Gold high-impact events exactly 15 minutes before release. |
+| Persistent lifecycle | A qualifying signal is stored once, shown in the website ledger, sent to Telegram from that same record, and tracked until its TP or SL is reached. The resolved outcome uses the same record and is sent as a separate Telegram update. |
+| Delivery health | The owner control panel shows signal deliveries, outcome deliveries, and any pending delivery records. A non-zero pending count means the next successful monitor pass will retry that record. |
+| Pause monitoring | Pauses the protected recurring job without deleting saved signals, outcomes, or delivery history. |
+
+The monitor is intentionally disabled by default. Enable it only after publishing, then verify the owner dashboard reports an active monitor and inspect the delivery-health panel after the first successful run. Signals are analytical scenarios, not trade execution or a guarantee of return.

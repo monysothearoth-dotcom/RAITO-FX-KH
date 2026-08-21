@@ -153,3 +153,65 @@ export const telegramNewsDeliveries = mysqlTable("telegram_news_deliveries", {
   uniqueIndex("telegram_news_delivery_user_fingerprint_unique").on(table.userId, table.fingerprint),
   index("telegram_news_delivery_user_delivered_index").on(table.userId, table.deliveredAt),
 ]);
+
+export const autoSignalSettings = mysqlTable("auto_signal_settings", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  isEnabled: int("isEnabled").notNull().default(0),
+  minConfidence: int("minConfidence").notNull().default(78),
+  minScore: int("minScore").notNull().default(82),
+  minRiskReward: double("minRiskReward").notNull().default(1.8),
+  scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
+  lastRunAt: timestamp("lastRunAt"),
+  lastError: varchar("lastError", { length: 512 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("auto_signal_settings_user_unique").on(table.userId),
+  index("auto_signal_settings_task_uid_index").on(table.scheduleCronTaskUid),
+]);
+
+export const autoSignals = mysqlTable("auto_signals", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  fingerprint: varchar("fingerprint", { length: 191 }).notNull(),
+  source: mysqlEnum("source", ["TECHNICAL", "PRE_NEWS"]).notNull(),
+  symbol: varchar("symbol", { length: 32 }).notNull(),
+  direction: mysqlEnum("direction", ["BUY", "SELL"]).notNull(),
+  status: mysqlEnum("status", ["OPEN", "TP_HIT", "SL_HIT", "EXPIRED", "CANCELLED"]).notNull().default("OPEN"),
+  entryPrice: double("entryPrice").notNull(),
+  stopLoss: double("stopLoss").notNull(),
+  takeProfit: double("takeProfit").notNull(),
+  confidence: int("confidence").notNull(),
+  technicalScore: int("technicalScore").notNull().default(0),
+  strategyScore: int("strategyScore").notNull().default(0),
+  fundamentalScore: int("fundamentalScore").notNull().default(0),
+  intelligenceScore: int("intelligenceScore").notNull().default(0),
+  riskReward: double("riskReward").notNull().default(0),
+  rationale: text("rationale").notNull(),
+  warning: text("warning"),
+  newsEvent: varchar("newsEvent", { length: 512 }),
+  newsScheduledAt: timestamp("newsScheduledAt"),
+  outcomePrice: double("outcomePrice"),
+  outcomeDetails: text("outcomeDetails"),
+  openedAt: timestamp("openedAt").defaultNow().notNull(),
+  resolvedAt: timestamp("resolvedAt"),
+  lastEvaluatedAt: timestamp("lastEvaluatedAt"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => [
+  uniqueIndex("auto_signal_user_fingerprint_unique").on(table.userId, table.fingerprint),
+  index("auto_signal_user_status_index").on(table.userId, table.status),
+  index("auto_signal_user_opened_index").on(table.userId, table.openedAt),
+]);
+
+export const autoSignalDeliveries = mysqlTable("auto_signal_deliveries", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  signalId: int("signalId").notNull(),
+  deliveryType: mysqlEnum("deliveryType", ["SIGNAL", "OUTCOME"]).notNull(),
+  deliveredAt: timestamp("deliveredAt").defaultNow().notNull(),
+}, (table) => [
+  uniqueIndex("auto_signal_delivery_unique").on(table.signalId, table.deliveryType),
+  index("auto_signal_delivery_user_index").on(table.userId, table.deliveredAt),
+]);

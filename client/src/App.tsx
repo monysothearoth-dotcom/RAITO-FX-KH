@@ -15,6 +15,7 @@ import MarketConverter from './components/MarketConverter';
 import MarketNews from './components/MarketNews';
 import MarketPulse from './components/MarketPulse';
 import SignalAnalyzer from './components/SignalAnalyzer';
+import AutoSignalAnalyze from './components/AutoSignalAnalyze';
 import AllInOneAiHub from './components/AllInOneAiHub';
 import AIAgent from './components/AIAgent';
 import AuthModal from './components/AuthModal';
@@ -57,14 +58,14 @@ import {
 export const responsiveHeaderClassName = 'max-w-7xl mx-auto flex flex-col lg:flex-row lg:items-center justify-between gap-2 sm:gap-3 w-full min-w-0';
 export const responsiveHeaderNavClassName = 'flex items-center gap-1.5 overflow-x-auto pb-1 w-full max-w-full min-w-0 text-[11px] sm:text-xs font-semibold whitespace-nowrap scrollbar-none touch-pan-x overscroll-x-contain';
 
-export type DashboardTab = 'markets' | 'pulse' | 'signals' | 'all_in_one' | 'agent' | 'news' | 'research' | 'list' | 'alerts' | 'journal' | 'analytics' | 'account';
+export type DashboardTab = 'markets' | 'auto_signals' | 'pulse' | 'signals' | 'all_in_one' | 'agent' | 'news' | 'research' | 'list' | 'alerts' | 'journal' | 'analytics' | 'account';
 
 export function ResponsiveHeaderNav({ children }: { children: React.ReactNode }) {
   return <nav className={responsiveHeaderNavClassName}>{children}</nav>;
 }
 
 export function getInitialDashboardTab(requestedView: string | null): DashboardTab {
-  if (requestedView && ['markets', 'pulse', 'signals', 'all_in_one', 'agent', 'news', 'research', 'list', 'alerts', 'journal', 'analytics', 'account'].includes(requestedView)) return requestedView as DashboardTab;
+  if (requestedView && ['markets', 'auto_signals', 'pulse', 'signals', 'all_in_one', 'agent', 'news', 'research', 'list', 'alerts', 'journal', 'analytics', 'account'].includes(requestedView)) return requestedView as DashboardTab;
   return 'all_in_one';
 }
 
@@ -660,6 +661,18 @@ export default function App() {
                 Markets &amp; Chart
               </button>
               <button
+                onClick={() => setActiveTab('auto_signals')}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'auto_signals'
+                    ? 'bg-violet-500/15 text-violet-200 border border-violet-400/30'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                id="tab-auto-signal-analyze"
+              >
+                <Compass className="h-3.5 w-3.5 text-violet-300" />
+                Auto Signal Analyze
+              </button>
+              <button
                 onClick={() => setActiveTab('pulse')}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'pulse'
@@ -931,6 +944,9 @@ export default function App() {
                   </>
                 )}
 
+                {/* Persistent Auto Signal Analyze Tab */}
+                {activeTab === 'auto_signals' && <AutoSignalAnalyze />}
+
                 {/* 2. Real-Time Market Pulse Tab */}
                 {activeTab === 'pulse' && (
                   <MarketPulse
@@ -1156,4 +1172,3 @@ export default function App() {
     </div>
   );
 }
-

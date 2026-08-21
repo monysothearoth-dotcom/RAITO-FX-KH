@@ -8,7 +8,7 @@ import { systemRouter } from "./_core/systemRouter";
 import { canManageTelegramNewsAlerts, getTelegramHealthStatus } from "./telegramNews";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { z } from "zod";
-import { closePaperTrade, createNewsEffectTracking, createPaperTrade, createPriceAlert, createTradeJournalEntry, deleteUserAccount, disableTelegramNewsSettings, enableTelegramNewsSettings, getTelegramNewsSettings, getUserAccountExport, getUserById, getUserNewsEffectTrackingSummary, listNewsEffectTracking, listPaperTrades, listPortfolioHoldings, listPriceAlerts, listTradeJournalEntries, saveTelegramScheduleTask, summarizePaperTrades, updateNewsEffectTracking, updateTelegramHighImpactSettings, updateUserProfile, upsertPortfolioHolding } from "./db";
+import { closePaperTrade, createNewsEffectTracking, createPaperTrade, createPriceAlert, createTradeJournalEntry, deleteUserAccount, disableAutoSignalSettings, disableTelegramNewsSettings, enableAutoSignalSettings, enableTelegramNewsSettings, getAutoSignalDeliveryHealth, getAutoSignalSettings, getTelegramNewsSettings, getUserAccountExport, getUserById, getUserNewsEffectTrackingSummary, listAutoSignals, listNewsEffectTracking, listPaperTrades, listPortfolioHoldings, listPriceAlerts, listTradeJournalEntries, saveAutoSignalScheduleTask, saveTelegramScheduleTask, summarizePaperTrades, updateAutoSignalThresholds, updateNewsEffectTracking, updateTelegramHighImpactSettings, updateUserProfile, upsertPortfolioHolding } from "./db";
 import { comparePredictedEffect, fetchTrackingPrice, movementPercent, newsEffectFingerprint, classifyActualEffect } from "./newsEffectTracking";
 
 export const appRouter = router({
@@ -93,9 +93,46 @@ export const appRouter = router({
     }),
   }),
 
+  autoSignals: router({
+    list: publicProcedure.query(() => listAutoSignals()),
+    status: protectedProcedure.query(async ({ ctx }) => {
+      if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) return undefined;
+      return (await getAutoSignalSettings(ctx.user.id)) || { isEnabled: 0, minConfidence: 78, minScore: 82, minRiskReward: 1.8, lastRunAt: null, lastError: null, scheduleCronTaskUid: null };
+    }),
+    deliveryHealth: protectedProcedure.query(async ({ ctx }) => {
+      if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) throw new TRPCError({ code: "FORBIDDEN", message: "Only the project owner can inspect Auto Signal delivery health." });
+      return getAutoSignalDeliveryHealth(ctx.user.id);
+    }),
+    updateThresholds: protectedProcedure.input(z.object({ minConfidence: z.number().int().min(60).max(95), minScore: z.number().int().min(60).max(95), minRiskReward: z.number().min(1.1).max(4) })).mutation(async ({ ctx, input }) => {
+      if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) throw new TRPCError({ code: "FORBIDDEN", message: "Only the project owner can tune Auto Signal Analyze." });
+      return updateAutoSignalThresholds(ctx.user.id, input);
+    }),
+    enable: protectedProcedure.mutation(async ({ ctx }) => {
+      if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) throw new TRPCError({ code: "FORBIDDEN", message: "Only the project owner can enable Auto Signal Analyze." });
+      if (!ENV.telegramBotToken || !ENV.telegramChatId) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Telegram bot configuration is incomplete." });
+      const settings = await enableAutoSignalSettings(ctx.user.id);
+      const session = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
+      if (settings?.scheduleCronTaskUid) {
+        await updateHeartbeatJob(settings.scheduleCronTaskUid, { enable: true }, session);
+        return getAutoSignalSettings(ctx.user.id);
+      }
+      const job = await createHeartbeatJob({ name: `auto-signal-monitor-${ctx.user.id}`, cron: "0 * * * * *", path: "/api/scheduled/auto-signal-monitor", payload: {}, description: "Persistent XAU/USD and BTC/USD Auto Signal Analyze monitoring every 60 seconds." }, session);
+      return saveAutoSignalScheduleTask(ctx.user.id, job.taskUid);
+    }),
+    disable: protectedProcedure.mutation(async ({ ctx }) => {
+      if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) throw new TRPCError({ code: "FORBIDDEN", message: "Only the project owner can disable Auto Signal Analyze." });
+      const settings = await disableAutoSignalSettings(ctx.user.id);
+      if (settings?.scheduleCronTaskUid) {
+        const session = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
+        await updateHeartbeatJob(settings.scheduleCronTaskUid, { enable: false }, session);
+      }
+      return getAutoSignalSettings(ctx.user.id);
+    }),
+  }),
+
   account: router({
     profile: protectedProcedure.query(({ ctx }) => getUserById(ctx.user.id)),
-    updateProfile: protectedProcedure.input(z.object({ displayName: z.string().trim().min(1).max(160).nullable().optional(), timezone: z.string().trim().min(1).max(64).optional(), defaultView: z.enum(["markets", "pulse", "signals", "all_in_one", "agent", "news", "research", "list", "alerts", "journal", "analytics"]).optional(), theme: z.enum(["dark", "light", "system"]).optional() })).mutation(({ ctx, input }) => updateUserProfile(ctx.user.id, input)),
+    updateProfile: protectedProcedure.input(z.object({ displayName: z.string().trim().min(1).max(160).nullable().optional(), timezone: z.string().trim().min(1).max(64).optional(), defaultView: z.enum(["markets", "auto_signals", "pulse", "signals", "all_in_one", "agent", "news", "research", "list", "alerts", "journal", "analytics"]).optional(), theme: z.enum(["dark", "light", "system"]).optional() })).mutation(({ ctx, input }) => updateUserProfile(ctx.user.id, input)),
     exportData: protectedProcedure.query(async ({ ctx }) => {
       const data = await getUserAccountExport(ctx.user.id);
       if (!data) throw new TRPCError({ code: "NOT_FOUND", message: "Account record was not found." });
