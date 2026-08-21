@@ -109,7 +109,7 @@ export const appRouter = router({
     }),
     enable: protectedProcedure.mutation(async ({ ctx }) => {
       if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) throw new TRPCError({ code: "FORBIDDEN", message: "Only the project owner can enable Auto Signal Analyze." });
-      if (!ENV.telegramBotToken || !ENV.telegramChatId) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "Telegram bot configuration is incomplete." });
+      if (!ENV.autoSignalTelegramBotToken || !ENV.autoSignalTelegramChatId) throw new TRPCError({ code: "PRECONDITION_FAILED", message: "The dedicated Auto Signal Telegram bot configuration is incomplete." });
       const settings = await enableAutoSignalSettings(ctx.user.id);
       const session = parseCookie(ctx.req.headers.cookie ?? "")[COOKIE_NAME] ?? "";
       if (settings?.scheduleCronTaskUid) {

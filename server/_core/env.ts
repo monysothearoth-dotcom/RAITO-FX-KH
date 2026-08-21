@@ -9,4 +9,10 @@ export const ENV = {
   forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN ?? "",
   telegramChatId: process.env.TELEGRAM_CHAT_ID ?? "",
+  autoSignalTelegramBotToken: process.env.AUTO_SIGNAL_TELEGRAM_BOT_TOKEN ?? "",
+  autoSignalTelegramChatId: process.env.AUTO_SIGNAL_TELEGRAM_CHAT_ID ?? "",
+  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  openAiApiKey: process.env.OPENAI_API_KEY ?? "",
+  anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
+  openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
 };

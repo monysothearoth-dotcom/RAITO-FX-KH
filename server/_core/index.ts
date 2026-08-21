@@ -158,6 +158,7 @@ async function fetchLiveChartContext(symbol: string): Promise<ChartContext> {
 
 const AI_ENDPOINTS: Record<string, { url: string; model: string; kind: "openai" | "anthropic" | "gemini" }> = {
   openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", model: "google/gemini-2.5-flash", kind: "openai" },
+  grok: { url: "https://openrouter.ai/api/v1/chat/completions", model: "x-ai/grok-4.6", kind: "openai" },
   groq: { url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", kind: "openai" },
   anthropic: { url: "https://api.anthropic.com/v1/messages", model: "claude-3-5-sonnet-20241022", kind: "anthropic" },
   openai: { url: "https://api.openai.com/v1/chat/completions", model: "gpt-4o-mini", kind: "openai" },
@@ -197,6 +198,26 @@ async function callUserSuppliedAI(provider: string, apiKey: string, messages: Ar
   const data = await response.json() as any;
   if (!response.ok) throw new Error(data?.error?.message || data?.error || "AI request failed");
   return config.kind === "anthropic" ? data?.content?.[0]?.text || "" : data?.choices?.[0]?.message?.content || "";
+}
+
+async function reviewAutoSignalWithBackendProviders(candidate: { symbol: string; direction: string; entryPrice: number; stopLoss: number; takeProfit: number; confidence: number; technicalScore: number; strategyScore: number; fundamentalScore: number; intelligenceScore: number; rationale: string }) {
+  const messages = [
+    { role: "system", content: "You are a cautious market-analysis reviewer. Do not give financial advice or claim certainty. Review only the supplied deterministic setup. Return strict JSON: {\"approve\":boolean,\"note\":string}. Approve only when the stated scores, risk/reward, and rationale are internally consistent." },
+    { role: "user", content: JSON.stringify(candidate) },
+  ];
+  const providers = [["gemini", ENV.geminiApiKey], ["openai", ENV.openAiApiKey], ["anthropic", ENV.anthropicApiKey], ["grok", ENV.openRouterApiKey]] as const;
+  const failures: string[] = [];
+  for (const [provider, apiKey] of providers) {
+    if (!apiKey) { failures.push(`${provider}:not-configured`); continue; }
+    try {
+      const parsed = parseStructuredAiJson(await callUserSuppliedAI(provider, apiKey, messages));
+      if (!parsed || typeof parsed.approve !== "boolean") throw new Error("invalid-review");
+      return { approved: parsed.approve, provider, note: typeof parsed.note === "string" ? parsed.note.slice(0, 280) : "Backend AI review completed." };
+    } catch (error) {
+      failures.push(`${provider}:${error instanceof Error ? error.message : "request-failed"}`);
+    }
+  }
+  return { approved: true, provider: "deterministic-fallback", note: `AI review unavailable; retained deterministic confluence gate (${failures.map((failure) => failure.split(":")[0]).join(", ") || "no-provider"}).` };
 }
 
 type NewsCategory = "forex" | "crypto";
@@ -451,7 +472,8 @@ async function startServer() {
         resolve: resolveAutoSignal,
         touch: touchAutoSignal,
         listDeliveryQueue: listPendingAutoSignalDeliveries,
-        send: (text) => sendTelegramNewsMessage(ENV.telegramBotToken, ENV.telegramChatId, text),
+        review: reviewAutoSignalWithBackendProviders,
+        send: (text) => sendTelegramNewsMessage(ENV.autoSignalTelegramBotToken, ENV.autoSignalTelegramChatId, text),
         recordDelivery: recordAutoSignalDelivery,
         markRun: markAutoSignalRun,
       });

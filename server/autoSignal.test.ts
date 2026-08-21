@@ -42,6 +42,7 @@ describe("Auto Signal Analyze engine", () => {
       fetchPrices: async () => ({ "OANDA:XAUUSD": qualifiedPrice, "BINANCE:BTCUSDT": { price: 100, change: 0.1, changePercent: 0.1, high: 101, low: 99 } }),
       fetchHistorical: async () => bullishHistory,
       fetchCalendar: async () => [],
+      review: async () => ({ approved: true, provider: "test-reviewer", note: "Confluence is internally consistent." }),
       listOpen: async () => websiteSignals.filter((signal) => signal.status === "OPEN"),
       create: async (_userId, candidate) => {
         const signal = persisted(candidate, websiteSignals.length + 1);
@@ -61,5 +62,31 @@ describe("Auto Signal Analyze engine", () => {
     expect(telegramMessages).toHaveLength(1);
     expect(telegramMessages[0]).toContain(websiteSignals[0].symbol);
     expect(recordedDeliveries).toEqual(["1:SIGNAL"]);
+  });
+
+  it("suppresses publication when the backend AI reviewer rejects a deterministic candidate", async () => {
+    const created: PersistedAutoSignal[] = [];
+    const result = await runAutoSignalMonitor({
+      settings: { userId: 7, isEnabled: 1, ...thresholds },
+      fetchPrices: async () => ({ "OANDA:XAUUSD": qualifiedPrice }),
+      fetchHistorical: async () => bullishHistory,
+      fetchCalendar: async () => [],
+      review: async () => ({ approved: false, provider: "grok", note: "The supplied context is not sufficiently consistent." }),
+      listOpen: async () => [],
+      create: async (_userId, candidate) => {
+        const signal = persisted(candidate);
+        created.push(signal);
+        return { signal, created: true };
+      },
+      resolve: async () => undefined,
+      touch: async () => undefined,
+      listDeliveryQueue: async () => [],
+      send: async () => undefined,
+      recordDelivery: async () => undefined,
+      markRun: async () => undefined,
+      now: Date.UTC(2026, 7, 21, 12),
+    });
+    expect(result.created).toBe(0);
+    expect(created).toHaveLength(0);
   });
 });

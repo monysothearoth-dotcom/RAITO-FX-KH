@@ -5,6 +5,7 @@ export type AutoSignalDirection = "BUY" | "SELL";
 export type AutoSignalStatus = "OPEN" | "TP_HIT" | "SL_HIT" | "EXPIRED" | "CANCELLED";
 export type AutoSignalSource = "TECHNICAL" | "PRE_NEWS";
 export type AutoSignalDeliveryType = "SIGNAL" | "OUTCOME";
+export type AutoSignalReview = { approved: boolean; provider: string; note: string };
 
 export type AutoSignalPrice = {
   price: number;
@@ -223,6 +224,7 @@ export async function runAutoSignalMonitor(input: {
   resolve: (userId: number, signalId: number, outcome: { status: "TP_HIT" | "SL_HIT"; outcomePrice: number; outcomeDetails: string }) => Promise<PersistedAutoSignal | undefined>;
   touch: (userId: number, signalId: number) => Promise<void>;
   listDeliveryQueue: (userId: number) => Promise<Array<{ signal: PersistedAutoSignal; deliveryType: AutoSignalDeliveryType }>>;
+  review?: (candidate: AutoSignalCandidate) => Promise<AutoSignalReview>;
   send: (text: string) => Promise<void>;
   recordDelivery: (userId: number, signalId: number, deliveryType: AutoSignalDeliveryType) => Promise<void>;
   markRun: (userId: number, error?: string | null) => Promise<void>;
@@ -260,7 +262,10 @@ export async function runAutoSignalMonitor(input: {
     ]).filter((candidate): candidate is AutoSignalCandidate => Boolean(candidate));
     const preNewsCandidates = buildGoldPreNewsCandidates(events, xau, now);
     let created = 0;
-    for (const candidate of [...technicalCandidates, ...preNewsCandidates]) {
+    for (const deterministicCandidate of [...technicalCandidates, ...preNewsCandidates]) {
+      const review = input.review ? await input.review(deterministicCandidate) : { approved: true, provider: "deterministic", note: "No external AI review configured." };
+      if (!review.approved) continue;
+      const candidate = { ...deterministicCandidate, rationale: `${deterministicCandidate.rationale} Reviewer: ${review.provider}. ${review.note}`.slice(0, 2000) };
       const result = await input.create(input.settings.userId, candidate);
       if (result.created) created += 1;
     }

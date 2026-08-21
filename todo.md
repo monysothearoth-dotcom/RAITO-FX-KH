@@ -16,3 +16,12 @@
 - [x] Add protected delivery-health metrics so the owner can inspect pending, signal, and outcome Telegram delivery state.
 - [x] Validate the feature through type checks, tests, production build, and responsive live preview; document how to enable monitoring.
 - [x] Document the owner enablement flow, Telegram dependency, protected recurring monitor, and delivery-health review for Auto Signal Analyze.
+- [x] Review existing owner-only credential and API-provider settings patterns for Auto Signal Analyze configuration.
+- [x] Add secure server-side configuration support for Telegram bot token, Telegram chat ID, and four API credential slots.
+- [x] Superseded by the user’s backend-only requirement: do not add a browser credential-entry interface or return secret values to the website.
+- [x] Add tests and validation for protected credential configuration, then document the required credential labels and setup flow.
+- [x] Configure Telegram bot token, Telegram chat ID, and four API credentials as backend-only project secrets with no website or database disclosure.
+- [x] Configure `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `OPENROUTER_API_KEY` as backend-only Auto Signal Analyze credentials; direct xAI credentials are not used.
+- [x] Use separate `AUTO_SIGNAL_TELEGRAM_BOT_TOKEN` and `AUTO_SIGNAL_TELEGRAM_CHAT_ID` backend secrets for Auto Signal Analyze, leaving news-alert Telegram credentials unchanged.
+- [x] Configure `OPENROUTER_API_KEY` for the `x-ai/grok-4.6` backend fallback and remove direct xAI validation from Auto Signal Analyze.
+- [x] Reconfirm the documented backend-only secret labels and OpenRouter Grok 4.6 routing before the final checkpoint.
