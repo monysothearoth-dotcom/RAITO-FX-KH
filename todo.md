@@ -25,3 +25,7 @@
 - [x] Use separate `AUTO_SIGNAL_TELEGRAM_BOT_TOKEN` and `AUTO_SIGNAL_TELEGRAM_CHAT_ID` backend secrets for Auto Signal Analyze, leaving news-alert Telegram credentials unchanged.
 - [x] Configure `OPENROUTER_API_KEY` for the `x-ai/grok-4.6` backend fallback and remove direct xAI validation from Auto Signal Analyze.
 - [x] Reconfirm the documented backend-only secret labels and OpenRouter Grok 4.6 routing before the final checkpoint.
+- [x] Inspect why News Alert delivery is not translating into Khmer and identify the affected setting, eligibility rule, or translation fallback.
+- [x] Repair Khmer translation for News Alert messages without affecting dedicated Auto Signal Analyze delivery.
+- [x] Add focused regression coverage and validate Khmer News Alert delivery behavior.
+- [x] Investigate and repair the existing `users.displayName` database-migration mismatch reported by the live OAuth callback, without conflating it with News Alert translation.

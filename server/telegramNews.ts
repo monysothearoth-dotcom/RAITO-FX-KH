@@ -117,7 +117,8 @@ export async function deliverTelegramNewsBatch(input: {
     if (input.translate) {
       try {
         localized = await input.translate(unseen);
-      } catch {
+      } catch (error) {
+        console.warn("[TelegramNews] Khmer translation unavailable; delivering the original English headlines", error instanceof Error ? error.message : "unknown error");
         localized = unseen;
       }
     }

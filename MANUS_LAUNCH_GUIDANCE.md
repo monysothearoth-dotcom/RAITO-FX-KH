@@ -43,3 +43,7 @@ The monitor is intentionally disabled by default. Enable it only after publishin
 Auto Signal Analyze now uses a separate backend-only Telegram pair, `AUTO_SIGNAL_TELEGRAM_BOT_TOKEN` and `AUTO_SIGNAL_TELEGRAM_CHAT_ID`. These do not replace or share the Telegram values used by the existing news-alert feature. Its AI review chain is server-only and tries Gemini, OpenAI, Claude, then `x-ai/grok-4.6` through OpenRouter. The required project secrets are `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `OPENROUTER_API_KEY`.
 
 The automatic monitor retains the deterministic technical, strategy, fundamental, and risk/reward gate as its first safeguard. AI review is a secondary consistency check; if all configured providers are temporarily unavailable, it records that fact in the saved rationale and continues to apply the deterministic threshold rather than presenting an AI result as certain.
+
+### Khmer News Alert Translation
+
+News Alert now translates headlines through a Claude Haiku Khmer-first flow that returns a validated JSON mapping per headline. If that provider is temporarily unavailable or returns no usable Khmer text, the delivery path securely retries with the server-side Gemini key. English is retained only when neither translation provider returns valid Khmer, and the scheduled-delivery logs now state that fallback condition instead of failing silently.
