@@ -41,6 +41,7 @@ describe("literal authenticated App startup", () => {
     const { unmount } = render(<App />);
     expect(screen.getByTestId("research-library")).toBeTruthy();
     expect(document.documentElement.classList.contains("dark")).toBe(false);
+    expect(document.getElementById("global-currency-toggle-select")).toBeNull();
     unmount();
   });
 });

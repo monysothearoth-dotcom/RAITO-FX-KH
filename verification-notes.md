@@ -17,3 +17,9 @@ After the indicator-backed scoring and delivery-health update, the final desktop
 ## Navigation Reorder Verification
 
 The desktop preview shows Auto Signal Analyze immediately after Markets & Chart, with the following feature tabs continuing in the requested analysis-first sequence. The mobile preview preserves the horizontally scrollable header without clipping the first visible tabs; the reordered group remains accessible through the existing touch-scroll navigation. Regression coverage confirms the ordered sequence is Auto Signal Analyze, Signal Analyze, All-in-One AI Engine, AI Agent, and Economic Calendar & News, followed by the remaining functions.
+
+## Header Simplification Verification
+
+The global currency selector has been removed from the header. At desktop width, the reordered feature navigation and account controls now remain visually separate; market-status readouts are deferred to extra-wide screens to avoid a collision with the navigation group.
+
+At the inspected mobile width, the removed currency selector no longer consumes a separate header row. The account controls align below the touch-scroll feature navigation without visible clipping or horizontal overflow.

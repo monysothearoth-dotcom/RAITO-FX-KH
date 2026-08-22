@@ -27,7 +27,6 @@ import ResearchLibrary from './components/ResearchLibrary';
 import PaperTradingPanel from './components/PaperTradingPanel';
 import AccountSettings, { formatAccountClock } from './components/AccountSettings';
 import { MacroIndicatorsPanel, CryptoMetricsPanel } from './components/MarketDataPanels';
-import { useCurrency, SUPPORTED_CURRENCIES } from './context/CurrencyContext';
 import { useAuth } from './_core/hooks/useAuth';
 import { trpc } from './lib/trpc';
 import { motion, AnimatePresence } from 'motion/react';
@@ -37,7 +36,6 @@ import {
   Shield, 
   Activity, 
   Flame,
-  Globe,
   LineChart, 
   Cpu, 
   Newspaper, 
@@ -131,7 +129,6 @@ export function AuthStatus({ loading, error, user, logoutError, onLogin, onSignu
 }
 
 export default function App() {
-  const { currency, setCurrency } = useCurrency();
   const { user: sessionUser, loading: authLoading, error: authSessionError, logout } = useAuth();
   const user = sessionUser?.name || sessionUser?.email?.split('@')[0] || sessionUser?.openId || null;
   const [accountTimezone, setAccountTimezone] = useState('UTC');
@@ -798,28 +795,7 @@ export default function App() {
 
           {/* Account & Status Indicators */}
           <div className="flex items-center justify-between md:justify-end gap-2 sm:gap-5 w-full lg:w-auto min-w-0">
-            {/* Global Currency Converter Selector */}
-            <div className="flex items-center gap-1.5 bg-slate-850 border border-slate-800 rounded-xl px-2 py-1 text-xs font-mono shadow-md hover:border-slate-700 transition-colors min-w-0 flex-1 sm:flex-none max-w-[170px] sm:max-w-none">
-              <Globe className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <select
-                value={currency}
-                onChange={(e) => setCurrency(e.target.value)}
-                className="bg-transparent text-slate-200 font-extrabold focus:outline-none cursor-pointer text-xs min-w-0 max-w-[132px] sm:max-w-none truncate"
-                title="Global Preferred Display Currency"
-                id="global-currency-toggle-select"
-              >
-                {Object.values(SUPPORTED_CURRENCIES).map((c) => {
-                  const cName = typeof c?.name === 'string' ? c.name : String(c?.name || '');
-                  return (
-                    <option key={c.code} value={c.code} className="bg-slate-900 text-slate-200 font-mono">
-                      {c.symbol} {c.code} ({cName.split('-')[1]?.trim() || cName})
-                    </option>
-                  );
-                })}
-              </select>
-            </div>
-
-            <div className="hidden lg:flex items-center gap-4 text-xs font-mono text-slate-500">
+            <div className="hidden 2xl:flex items-center gap-4 text-xs font-mono text-slate-500">
               <div className="flex items-center gap-1.5">
                 <span className="text-[10px] uppercase">Fear/Greed:</span>
                 <span className="text-emerald-500 font-bold">64 (Greed)</span>

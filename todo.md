@@ -35,7 +35,11 @@
 - [ ] Publish the current server routes, then enable News Alert as the owner so its persistent schedule can be created and tested.
 - [x] Reorder navigation so Auto Signal Analyze is followed by Signal Analyze, All in One AI Engine, AI Agent, and Economic Calendar & News, with all other functions after that group.
 - [x] Run navigation regression checks and verify the reordered feature group on desktop and mobile layouts.
-- [ ] Save the navigation update and document the new feature order.
+- [x] Save the navigation update and document the new feature order.
+- [x] Remove the global currency selector from the header and remove related unused header dependencies.
+- [x] Prevent the remaining header market-status indicators from colliding with the reordered navigation at desktop widths.
+- [x] Validate the simplified header on desktop and mobile layouts.
+- [ ] Save the header simplification and document the removed control.
 
 REALITY CHECK:
 The Auto Signal and Khmer News Alert delivery items remain blocked on the user publishing the current server routes. The live Auto Signal heartbeat currently receives HTTP 404 until that publish step is completed.
