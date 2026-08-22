@@ -29,3 +29,7 @@
 - [x] Repair Khmer translation for News Alert messages without affecting dedicated Auto Signal Analyze delivery.
 - [x] Add focused regression coverage and validate Khmer News Alert delivery behavior.
 - [x] Investigate and repair the existing `users.displayName` database-migration mismatch reported by the live OAuth callback, without conflating it with News Alert translation.
+- [x] Inspect the live Auto Signal and News Alert schedules, settings, delivery queues, and Khmer translation diagnostics for the reported missing delivery.
+- [ ] Repair any enabled-state, scheduler, source, translation, or Telegram delivery fault affecting Auto Signal or Khmer News Alert delivery.
+- [ ] Validate the repaired live-delivery prerequisites and document the exact owner activation and verification steps.
+- [ ] Publish the current server routes, then enable News Alert as the owner so its persistent schedule can be created and tested.
