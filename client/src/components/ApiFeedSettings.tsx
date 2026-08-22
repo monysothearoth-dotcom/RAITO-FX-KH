@@ -1,27 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { 
   Cpu, 
-  Key, 
   Activity, 
   Globe, 
-  HelpCircle, 
   Database, 
   RefreshCw, 
   CheckCircle2, 
-  AlertCircle,
-  Terminal,
-  Sparkles
+  Terminal
 } from 'lucide-react';
 
 interface ApiFeedSettingsProps {
   apiProvider: string;
   onProviderChange: (provider: string) => void;
-  alphaVantageKey: string;
-  onAlphaVantageKeyChange: (key: string) => void;
-  coingeckoKey: string;
-  onCoingeckoKeyChange: (key: string) => void;
-  iexCloudKey: string;
-  onIexCloudKeyChange: (key: string) => void;
   onForceRefresh: () => Promise<void>;
   currentSource: string;
   isRefreshing: boolean;
@@ -32,12 +22,6 @@ interface ApiFeedSettingsProps {
 export default function ApiFeedSettings({
   apiProvider,
   onProviderChange,
-  alphaVantageKey,
-  onAlphaVantageKeyChange,
-  coingeckoKey,
-  onCoingeckoKeyChange,
-  iexCloudKey,
-  onIexCloudKeyChange,
   onForceRefresh,
   currentSource,
   isRefreshing,
@@ -45,8 +29,6 @@ export default function ApiFeedSettings({
   onSimulatedTicksToggle
 }: ApiFeedSettingsProps) {
   const [activeLog, setActiveLog] = useState<{ time: string; msg: string; type: 'info' | 'success' | 'warn' }[]>([]);
-  const [showHelp, setShowHelp] = useState<string | null>(null);
-
   // Add a log entry helper
   const addLog = (msg: string, type: 'info' | 'success' | 'warn' = 'info') => {
     const timestamp = new Date().toLocaleTimeString();
@@ -111,7 +93,7 @@ export default function ApiFeedSettings({
         </div>
 
         {/* Form Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="flex flex-col gap-4">
           
           {/* Left Column: Selector & Keys */}
           <div className="flex flex-col gap-4">
@@ -133,7 +115,6 @@ export default function ApiFeedSettings({
                 <option value="auto">Auto / Smart-Select (Recommended)</option>
                 <option value="coingecko">CoinGecko (Cryptocurrencies)</option>
                 <option value="alphavantage">Alpha Vantage (Forex, Stocks, Oils)</option>
-                <option value="iexcloud">IEX Cloud (Enterprise Stocks)</option>
               </select>
             </div>
 
@@ -166,96 +147,10 @@ export default function ApiFeedSettings({
               <div className="flex flex-col gap-1 text-[11px] text-slate-400">
                 <span className="font-semibold text-slate-300">Reliable Financial API Fail-Safes</span>
                 <p className="text-[10px] text-slate-500 leading-normal">
-                  No account setup is required to get started. When credentials are not supplied, Raito-Fx queries integrated public endpoints of Binance, ExchangeRate, and Yahoo Finance to populate live, authentic assets and commodities!
+                  Alpha Vantage and CoinGecko credentials are managed securely by the server. Browser sessions never receive or store provider keys; public feeds remain available when a provider is temporarily unavailable.
                 </p>
               </div>
             </div>
-          </div>
-
-          {/* Right Column: Custom Keys Input */}
-          <div className="flex flex-col gap-4">
-            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Key className="h-3.5 w-3.5" /> Overwrite Provider API Keys
-            </h3>
-
-            {/* Alpha Vantage */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 font-mono">ALPHA_VANTAGE_API_KEY</span>
-                <button
-                  type="button"
-                  onClick={() => setShowHelp(showHelp === 'av' ? null : 'av')}
-                  className="text-[9px] font-semibold text-amber-500 hover:underline cursor-pointer"
-                >
-                  Get Free Key
-                </button>
-              </div>
-              <input
-                type="password"
-                placeholder="Paste Alpha Vantage API key..."
-                value={alphaVantageKey}
-                onChange={(e) => onAlphaVantageKeyChange(e.target.value)}
-                className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-300 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-all font-mono"
-              />
-              {showHelp === 'av' && (
-                <div className="p-2.5 bg-slate-900/80 rounded-lg text-[10px] text-slate-400 leading-normal border border-slate-850 animate-fadeIn">
-                  Alpha Vantage handles high-precision Forex and Stocks quotes. Generate a lifetime free API key in seconds at <a href="https://www.alphavantage.co/support/#api-key" target="_blank" rel="noreferrer" className="text-amber-400 underline font-semibold">alphavantage.co</a>.
-                </div>
-              )}
-            </div>
-
-            {/* CoinGecko */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 font-mono">COINGECKO_API_KEY</span>
-                <button
-                  type="button"
-                  onClick={() => setShowHelp(showHelp === 'cg' ? null : 'cg')}
-                  className="text-[9px] font-semibold text-amber-500 hover:underline cursor-pointer"
-                >
-                  Pro/Demo Key Info
-                </button>
-              </div>
-              <input
-                type="password"
-                placeholder="Paste CoinGecko Demo/Pro API key (optional)..."
-                value={coingeckoKey}
-                onChange={(e) => onCoingeckoKeyChange(e.target.value)}
-                className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-300 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-all font-mono"
-              />
-              {showHelp === 'cg' && (
-                <div className="p-2.5 bg-slate-900/80 rounded-lg text-[10px] text-slate-400 leading-normal border border-slate-850 animate-fadeIn">
-                  CoinGecko powers Raito's cryptocurrency metrics. No key is required for default public access, but Demo/Pro keys can be specified here to lift default request rate throttles.
-                </div>
-              )}
-            </div>
-
-            {/* IEX Cloud */}
-            <div className="flex flex-col gap-1.5">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-slate-500 font-mono">IEX_CLOUD_API_KEY</span>
-                <button
-                  type="button"
-                  onClick={() => setShowHelp(showHelp === 'iex' ? null : 'iex')}
-                  className="text-[9px] font-semibold text-amber-500 hover:underline cursor-pointer"
-                >
-                  IEX Cloud Help
-                </button>
-              </div>
-              <input
-                type="password"
-                placeholder="Paste IEX Cloud API key..."
-                value={iexCloudKey}
-                onChange={(e) => onIexCloudKeyChange(e.target.value)}
-                className="w-full px-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-xl text-slate-300 placeholder-slate-600 focus:outline-none focus:border-amber-500/50 transition-all font-mono"
-              />
-              {showHelp === 'iex' && (
-                <div className="p-2.5 bg-slate-900/80 rounded-lg text-[10px] text-slate-400 leading-normal border border-slate-850 animate-fadeIn">
-                  IEX Cloud provides ultra-low latency enterprise stock data. Paste your IEX Cloud publishable token to pull stocks metrics from enterprise nodes.
-                </div>
-              )}
-            </div>
-
           </div>
         </div>
 

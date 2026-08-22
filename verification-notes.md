@@ -23,3 +23,11 @@ The desktop preview shows Auto Signal Analyze immediately after Markets & Chart,
 The global currency selector has been removed from the header. At desktop width, the reordered feature navigation and account controls now remain visually separate; market-status readouts are deferred to extra-wide screens to avoid a collision with the navigation group.
 
 At the inspected mobile width, the removed currency selector no longer consumes a separate header row. The account controls align below the touch-scroll feature navigation without visible clipping or horizontal overflow.
+
+## Secure Two-Provider Market Data Verification
+
+The Markets & Chart workspace shows the simplified Real-Time Data Feed Integrations panel with only Auto, CoinGecko, and Alpha Vantage choices. The previous Overwrite Provider API Keys inputs and the IEX Cloud option are absent. The panel explicitly states that Alpha Vantage and CoinGecko credentials are managed server-side and are not stored in or returned to browser sessions.
+
+At the inspected mobile size, the simplified provider panel reflows into a single readable column. It retains the provider selector, micro-tick control, server-managed credential notice, and terminal state with no browser API-key inputs or observed horizontal overflow.
+
+The repeated 375×812 Markets preview reconfirmed that the provider panel has no visible Alpha Vantage, CoinGecko, or IEX Cloud key input, no IEX Cloud provider option, and no horizontal overflow. The server-managed credential notice is fully readable in the mobile column.

@@ -16,4 +16,5 @@ export const ENV = {
   anthropicApiKey: process.env.ANTHROPIC_API_KEY ?? "",
   openRouterApiKey: process.env.OPENROUTER_API_KEY ?? "",
   alphaVantageApiKey: process.env.ALPHA_VANTAGE_API_KEY ?? "",
+  coinGeckoApiKey: process.env.COINGECKO_API_KEY ?? "",
 };

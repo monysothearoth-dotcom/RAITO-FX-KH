@@ -47,3 +47,9 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Sync the development preview to the latest shared-project version.
 - [x] Review the Alpha Vantage integration and add the provided API key as a backend-only project secret.
 - [x] Validate Alpha Vantage server-side market-data access and confirm the synchronized preview is healthy.
+- [x] Inspect the existing CoinGecko and IEX Cloud provider flow and all browser-facing override controls.
+- [x] Superseded by the two-provider plan: configure CoinGecko backend-only credentials and remove IEX Cloud because it is no longer a supported free provider.
+- [x] Remove provider API-key inputs and browser-persisted key overrides from the market-data interface.
+- [x] Validate the secure provider configuration and simplified interface through tests, build, and responsive preview.
+- [x] Verify the simplified two-provider market-data settings on a mobile viewport, confirming no API-key inputs or layout overflow.
+- [x] Remove IEX Cloud from provider configuration and retain only Alpha Vantage and CoinGecko as secure backend-only providers.

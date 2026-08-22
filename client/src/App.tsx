@@ -179,30 +179,6 @@ export default function App() {
     }
   });
 
-  const [alphaVantageKey, setAlphaVantageKey] = useState<string>(() => {
-    try {
-      return localStorage.getItem('raito_av_key') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  const [coingeckoKey, setCoingeckoKey] = useState<string>(() => {
-    try {
-      return localStorage.getItem('raito_cg_key') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  const [iexCloudKey, setIexCloudKey] = useState<string>(() => {
-    try {
-      return localStorage.getItem('raito_iex_key') || '';
-    } catch {
-      return '';
-    }
-  });
-
   const [simulatedTicksEnabled, setSimulatedTicksEnabled] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('raito_simulated_ticks');
@@ -220,27 +196,6 @@ export default function App() {
     setApiProvider(val);
     try {
       localStorage.setItem('raito_api_provider', val);
-    } catch {}
-  };
-
-  const handleAlphaVantageKeyChange = (val: string) => {
-    setAlphaVantageKey(val);
-    try {
-      localStorage.setItem('raito_av_key', val);
-    } catch {}
-  };
-
-  const handleCoingeckoKeyChange = (val: string) => {
-    setCoingeckoKey(val);
-    try {
-      localStorage.setItem('raito_cg_key', val);
-    } catch {}
-  };
-
-  const handleIexCloudKeyChange = (val: string) => {
-    setIexCloudKey(val);
-    try {
-      localStorage.setItem('raito_iex_key', val);
     } catch {}
   };
 
@@ -491,13 +446,7 @@ export default function App() {
   const fetchLivePrices = async () => {
     setIsRefreshingFeed(true);
     try {
-      const params = new URLSearchParams({
-        provider: apiProvider,
-        coingeckoKey,
-        alphaVantageKey,
-        iexCloudKey
-      });
-      const res = await fetch(`/api/live-prices?${params.toString()}`);
+      const res = await fetch(`/api/live-prices?provider=${encodeURIComponent(apiProvider)}`);
       if (!res.ok) throw new Error('Failed to fetch real-time multi-market feed');
       const data = await res.json();
       if (data && data.prices) {
@@ -558,7 +507,7 @@ export default function App() {
       if (pollingInterval) clearInterval(pollingInterval);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [apiProvider, coingeckoKey, alphaVantageKey, iexCloudKey]);
+  }, [apiProvider]);
 
   // Micro-fluctuation engine (every 3s) for organic live-ticking visual interface (conditional)
   useEffect(() => {
@@ -905,16 +854,10 @@ export default function App() {
                       />
                     </div>
                     <MarketConverter activeTicker={activeTicker} />
-                    <ApiFeedSettings
-                      apiProvider={apiProvider}
-                      onProviderChange={handleProviderChange}
-                      alphaVantageKey={alphaVantageKey}
-                      onAlphaVantageKeyChange={handleAlphaVantageKeyChange}
-                      coingeckoKey={coingeckoKey}
-                      onCoingeckoKeyChange={handleCoingeckoKeyChange}
-                      iexCloudKey={iexCloudKey}
-                      onIexCloudKeyChange={handleIexCloudKeyChange}
-                      onForceRefresh={fetchLivePrices}
+              <ApiFeedSettings
+                apiProvider={apiProvider}
+                onProviderChange={handleProviderChange}
+                onForceRefresh={fetchLivePrices}
                       currentSource={currentSource}
                       isRefreshing={isRefreshingFeed}
                       simulatedTicksEnabled={simulatedTicksEnabled}

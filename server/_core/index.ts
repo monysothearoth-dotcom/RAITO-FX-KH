@@ -22,6 +22,7 @@ import { ENV } from "./env";
 import { invokeLLM } from "./llm";
 import { sdk } from "./sdk";
 import { fetchAlphaVantageStockQuote } from "../alphaVantage";
+import { fetchCoinGeckoCryptoPrices } from "../coinGecko";
 
 type LivePrice = { price: number; change: number; changePercent: number; high: number; low: number };
 
@@ -58,6 +59,15 @@ async function fetchLiveMarketPrices(): Promise<Record<string, LivePrice>> {
     }
   } catch (error) {
     console.warn("Binance market feed unavailable", error);
+  }
+
+  try {
+    const fallback = await fetchCoinGeckoCryptoPrices(ENV.coinGeckoApiKey);
+    for (const [symbol, quote] of Object.entries(fallback)) {
+      if (!prices[symbol]) prices[symbol] = quote;
+    }
+  } catch {
+    console.warn("CoinGecko market feed unavailable");
   }
 
   try {
@@ -496,7 +506,7 @@ async function startServer() {
 
   app.get("/api/live-prices", async (_req, res) => {
     const prices = await fetchLiveMarketPrices();
-    res.json({ prices, source: "Binance · open.er-api · Yahoo Finance · Alpha Vantage fallback · gold-api.com", timestamp: Date.now() });
+    res.json({ prices, source: "Binance · CoinGecko fallback · open.er-api · Yahoo Finance · Alpha Vantage fallback · gold-api.com", timestamp: Date.now() });
   });
 
   app.get("/api/macro-indicators", async (_req, res) => {
