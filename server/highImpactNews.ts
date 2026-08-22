@@ -19,6 +19,14 @@ export type EconomicCalendarEvent = {
   timestamp?: number;
 };
 
+export type VerifiedEventEvidence = {
+  status: "upcoming_high_impact" | "no_upcoming_high_impact" | "unavailable";
+  checkedAt: number;
+  horizonHours: number;
+  source: string;
+  highImpactEvents: Array<{ event: string; currency: string; scheduledAt: number; minutesUntil: number }>;
+};
+
 export type NewsEffectAnalysis = {
   affectedInstruments: string[];
   direction: NewsDirection | "MIXED";
@@ -93,6 +101,21 @@ export function isWithinPreReleaseWindow(event: EconomicCalendarEvent, now = Dat
   if (!Number.isFinite(scheduledAt)) return false;
   const delta = scheduledAt - now;
   return delta > 0 && delta <= leadMinutes * 60_000;
+}
+
+export function buildVerifiedEventEvidence(events: EconomicCalendarEvent[], options: { now?: number; horizonHours?: number; sourceAvailable?: boolean } = {}): VerifiedEventEvidence {
+  const now = options.now ?? Date.now();
+  const horizonHours = options.horizonHours ?? 24;
+  const sourceAvailable = options.sourceAvailable ?? true;
+  if (!sourceAvailable) return { status: "unavailable", checkedAt: now, horizonHours, source: "Public economic calendar unavailable", highImpactEvents: [] };
+  const cutoff = now + horizonHours * 60 * 60_000;
+  const highImpactEvents = events
+    .filter((event) => event.impact === "high")
+    .map((event) => ({ event, scheduledAt: event.timestamp || Date.parse(event.time) }))
+    .filter((item) => Number.isFinite(item.scheduledAt) && item.scheduledAt >= now && item.scheduledAt <= cutoff)
+    .sort((a, b) => a.scheduledAt - b.scheduledAt)
+    .map(({ event, scheduledAt }) => ({ event: event.event, currency: event.currency, scheduledAt, minutesUntil: Math.max(0, Math.round((scheduledAt - now) / 60_000)) }));
+  return { status: highImpactEvents.length ? "upcoming_high_impact" : "no_upcoming_high_impact", checkedAt: now, horizonHours, source: "Public economic calendar", highImpactEvents };
 }
 
 export function buildPreReleaseSignals(event: EconomicCalendarEvent, now = Date.now(), leadMinutes = 15): PreReleaseSignal[] {

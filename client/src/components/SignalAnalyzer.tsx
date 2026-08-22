@@ -27,6 +27,7 @@ import { MarketTicker, SignalReport } from '../types';
 import { getKnowledgePromptContext, inferResearchDomain } from '../lib/marketKnowledge';
 import StrategyBacktester from './StrategyBacktester';
 import { ConsensusMetadata } from './ConsensusMetadata';
+import { VerifiedEventEvidence, VerifiedHeadlineEvidence } from './VerifiedEventEvidence';
 
 const STRATEGIES = [
   'SMC',
@@ -94,11 +95,11 @@ export default function SignalAnalyzer({
     const assetCode = rawSym.split(':').pop() || rawSym;
     let promptText = '';
     if (mode === 'best_setup') {
-      promptText = `⚡ BEST SETUP MODE ACTIVE: Synthesize all 9 SMC/ICT technical frameworks, liquidity pools, OTE Fibonacci levels, and 5-Pillar ML model matrices. Extract the single highest probability A+ trade setup for ${assetCode} with maximum win rate and minimum 1:3.0 Risk-to-Reward ratio.`;
+      promptText = `⚡ BEST SETUP MODE ACTIVE: Use supplied structure, liquidity, OTE/Fibonacci context, volatility, and risk boundaries to identify one conditional A+ scenario for ${assetCode}. Require explicit invalidation and risk-to-reward. Do not claim a maximum win rate or invent machine-learning evidence.`;
     } else if (mode === 'news_analyze') {
-      promptText = `📰 NEWS ANALYZE & MACRO IMPACT MODE ACTIVE: Perform real-time live news and macroeconomic analysis for ${assetCode}. Scan latest financial news feeds, Federal Reserve / Central Bank interest rate expectations, NFP, CPI inflation figures, DXY momentum, and geopolitical risks. Evaluate the exact macro bias and event volatility risk.`;
+      promptText = `📰 VERIFIED NEWS & MACRO MODE ACTIVE: Analyze ${assetCode} only from the server-provided verified calendar evidence and macro context. If no high-impact event is verified, say so explicitly; if the calendar cannot be verified, say that instead. Do not invent news headlines, FOMC, NFP, CPI, central-bank events, or an exact macro bias. State event risk and confirmation needed.`;
     } else {
-      promptText = `🌐 ALL-IN-ONE UNIFIED MASTER SYNTHESIS ACTIVE: Fully integrate live price ticker feeds, technical indicators, SMC/ICT structural shifts, live financial news grounding, DXY correlation, and XGBoost Meta-Model classifiers into a unified 360-degree master trade signal with precision Entry, SL, and multi-tiered TP targets.`;
+      promptText = `🌐 ALL-IN-ONE UNIFIED MASTER SYNTHESIS ACTIVE: Reconcile supplied price, technical structure, liquidity, verified event evidence, and macro context into one conditional scenario. Provide a precise entry zone, structural invalidation, risk boundary, and targets only when supported by the supplied data. Never invent a headline, correlation, classifier, or certainty.`;
     }
     handleCustomPromptChange(promptText);
     fetchSignal(promptText);
@@ -1123,6 +1124,8 @@ export default function SignalAnalyzer({
                     <span className="font-black uppercase text-emerald-400">Selected best setup:</span> {report.selectionReason}
                   </div>
                 )}
+                <VerifiedEventEvidence evidence={report.eventEvidence} />
+                <VerifiedHeadlineEvidence evidence={report.headlineEvidence} />
 
                 {/* Multi-Timeframe Confluence Badges */}
                 <div className="flex flex-wrap gap-1.5 my-1">

@@ -15,6 +15,7 @@ import {
 import { MarketTicker, SignalReport } from '../types';
 import { getKnowledgePromptContext, inferResearchDomain } from '../lib/marketKnowledge';
 import { ConsensusMetadata } from './ConsensusMetadata';
+import { VerifiedEventEvidence, VerifiedHeadlineEvidence } from './VerifiedEventEvidence';
 
 interface AllInOneAiHubProps {
   activeTicker: MarketTicker;
@@ -49,13 +50,13 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
     let promptText = '';
     if (modeToRun === 'best_setup') {
       setLoadingStep(`⚡ BEST SETUP: Scanning 9 SMC/ICT frameworks & Order Blocks for ${symbolCode}...`);
-      promptText = `[MODE: BEST SETUP ONLY] Use the research-library workflow for ${symbolCode} (${timeframe}). Evaluate structure, liquidity, volatility, relevant macro/fundamental context, and risk/reward. Extract one strongest qualified setup only; do not claim guaranteed win rates.`;
+      promptText = `[MODE: BEST SETUP ONLY] Use the RAITO evidence-led research workflow for ${symbolCode} (${timeframe}). Evaluate supplied structure, liquidity, volatility, macro/fundamental context, invalidation, and risk/reward. Extract one qualified conditional scenario only; do not claim win rates or certainty.`;
     } else if (modeToRun === 'news_analyze') {
-      setLoadingStep(`📰 NEWS ANALYZE: Fetching live economic calendar & Bloomberg headlines for ${symbolCode}...`);
-      promptText = `[MODE: REAL-TIME NEWS & MACRO ANALYZE] Perform deep real-time news and macroeconomic analysis for ${symbolCode}. Scan central bank interest rate trajectory, NFP, CPI, DXY dollar index momentum, US 10-year yield trends, and global geopolitical headlines. Calculate exact macro bias and volatility risk.`;
+      setLoadingStep(`📰 NEWS ANALYZE: Verifying calendar evidence and current macro context for ${symbolCode}...`);
+      promptText = `[MODE: VERIFIED NEWS & MACRO ANALYZE] Analyze ${symbolCode} only with the server-provided verified calendar evidence and macro snapshot. If no high-impact event is verified, state that absence clearly and focus on conditional macro context. Do not name external news sources, releases, or catalysts that are not supplied. Describe event risk and invalidation; do not claim an exact macro bias.`;
     } else {
       setLoadingStep(`🌐 ALL-IN-ONE UNIFIED SYNTHESIS: Linking live price feeds & news grounding for ${symbolCode}...`);
-      promptText = `[MODE: ALL-IN-ONE 360 MASTER SYNTHESIS] Fully unify live price ticker stream, technical indicators, order flow liquidity, real-time macroeconomic news grounding, and 5-Pillar Machine Learning Meta-Labeling for ${symbolCode}. Provide a 360-degree master trade decision with entry, SL, TP1, TP2, TP3 targets, and macro risk audit.`;
+      promptText = `[MODE: ALL-IN-ONE 360 MASTER SYNTHESIS] Reconcile supplied live price context, technical structure, liquidity, verified calendar evidence, and macro or crypto context for ${symbolCode}. Provide one conditional analytical scenario with entry, structural invalidation, stop, targets, evidence gaps, and a macro/event risk audit. Do not invent machine-learning outputs, live news, or certainty.`;
     }
 
     try {
@@ -239,14 +240,14 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
                 <Globe className="h-4 w-4" />
               </span>
               <span className="text-[9px] font-mono font-bold text-cyan-300 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-full">
-                LIVE NEWS GROUNDED
+                VERIFIED EVENT CONTEXT
               </span>
             </div>
             <h3 className="text-sm font-extrabold text-white group-hover:text-cyan-400 transition-colors">
               📰 News Analyze Mode
             </h3>
             <p className="text-[11px] text-slate-400 leading-snug">
-              Scans live economic calendar events (NFP, CPI, FOMC), Federal Reserve interest rate projections, and real-time news headlines.
+              Checks verified high-impact calendar status, supplied macro context, and verified headlines when available. It states when no qualifying event or headline is available.
             </p>
           </div>
 
@@ -376,6 +377,8 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
               <span className="font-black uppercase text-emerald-400">Selected best setup:</span> {report.selectionReason}
             </div>
           )}
+          <VerifiedEventEvidence evidence={report.eventEvidence} />
+          <VerifiedHeadlineEvidence evidence={report.headlineEvidence} />
 
           {/* Key Execution Levels Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs font-mono">

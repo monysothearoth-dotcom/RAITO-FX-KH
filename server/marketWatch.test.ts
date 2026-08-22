@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildMarketWatchConsensus, buildMarketWatchPrompt, buildMarketWatchValidationPrompt, selectMarketResearchContext } from "./marketWatch";
+import { buildHeadlineEvidenceForSymbol, buildMarketWatchConsensus, buildMarketWatchPrompt, buildMarketWatchValidationPrompt, filterHeadlineEvidenceForSymbol, selectMarketResearchContext } from "./marketWatch";
 
 describe("market watch consensus", () => {
   it("chooses the majority BUY signal and reports agreement", () => {
@@ -38,6 +38,41 @@ describe("market watch consensus", () => {
     expect(cryptoPrompt).toContain("token supply/unlocks");
     expect(cryptoPrompt).toContain("Never invent values");
     expect(cryptoPrompt).toContain("fundingRate");
+  });
+
+  it("requires verified event evidence and preserves explicit no-event states", () => {
+    const prompt = buildMarketWatchPrompt({ symbol: "OANDA:EURUSD", chartContext: { live: { price: 1.08 } }, eventEvidence: { status: "no_upcoming_high_impact", horizonHours: 24, highImpactEvents: [] } });
+    expect(prompt).toContain("VERIFIED ECONOMIC EVENT EVIDENCE");
+    expect(prompt).toContain("no_upcoming_high_impact");
+    expect(prompt).toContain("do not name FOMC, CPI, NFP");
+    expect(prompt).toContain("Never invent values, prices, calendar events, news sources");
+  });
+
+  it("uses supplied headline evidence and prohibits invented unavailable sources", () => {
+    const prompt = buildMarketWatchPrompt({ symbol: "BINANCE:BTCUSDT", chartContext: { live: { price: 100000 } }, headlineEvidence: { status: "available", headlines: [{ title: "Verified Bitcoin market update", source: "Example Feed", timestamp: 1 }] } });
+    expect(prompt).toContain("VERIFIED MARKET NEWS HEADLINES");
+    expect(prompt).toContain("Verified Bitcoin market update");
+    expect(prompt).toContain("Headline rules: only reference a headline title");
+    expect(prompt).toContain("do not invent a news item or source");
+  });
+
+  it("filters headline evidence to the active Forex pair or crypto asset", () => {
+    const headlines = [
+      { category: "forex", relatedCurrency: "EURUSD", title: "EUR/USD update" },
+      { category: "forex", relatedCurrency: "GBPUSD", title: "GBP/USD update" },
+      { category: "crypto", relatedCurrency: "BTC", title: "Bitcoin update" },
+      { category: "crypto", relatedCurrency: "CRYPTO", title: "Generic crypto market update" },
+    ];
+    expect(filterHeadlineEvidenceForSymbol("OANDA:EURUSD", headlines)).toEqual([headlines[0]]);
+    expect(filterHeadlineEvidenceForSymbol("BINANCE:BTCUSDT", headlines)).toEqual([headlines[2]]);
+  });
+
+  it("maps filtered headline evidence to truthful available, empty, and unavailable route states", () => {
+    const forex = { category: "forex", relatedCurrency: "EURUSD", title: "EUR/USD update", source: "Example", timestamp: 1 };
+    const crypto = { category: "crypto", relatedCurrency: "BTC", title: "Bitcoin update", source: "Example", timestamp: 2 };
+    expect(buildHeadlineEvidenceForSymbol("OANDA:EURUSD", { items: [forex, crypto], sourceFailures: [] })).toMatchObject({ status: "available", headlines: [forex] });
+    expect(buildHeadlineEvidenceForSymbol("OANDA:EURUSD", { items: [crypto], sourceFailures: [] })).toMatchObject({ status: "no_relevant_headlines", headlines: [] });
+    expect(buildHeadlineEvidenceForSymbol("OANDA:EURUSD", { items: [], sourceFailures: ["Yahoo:EURUSD"] })).toMatchObject({ status: "unavailable", headlines: [] });
   });
 
   it("routes macro context to Forex and crypto context to Crypto validation", () => {

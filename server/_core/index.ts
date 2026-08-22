@@ -12,12 +12,12 @@ import { classifyNewsImpact, classifyNewsSentiment, normalizeHistoricalSeries, s
 import { callWithProviderFallback, parseStructuredAiJson } from "../aiFallback";
 import { GEMINI_GENERATE_URL, GEMINI_MODEL } from "../aiConfig";
 import { normalizeSignalPayload } from "../signal";
-import { buildMarketWatchConsensus, buildMarketWatchValidationPrompt, inferWatchDomain, type WatchCandidate } from "../marketWatch";
+import { buildHeadlineEvidenceForSymbol, buildMarketWatchConsensus, buildMarketWatchValidationPrompt, inferWatchDomain, type WatchCandidate } from "../marketWatch";
 import { createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalRun, markTelegramNewsRun, recordAutoSignalDelivery, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
 import { fetchAutoSignalHistoricalCloses, runAutoSignalMonitor } from "../autoSignal";
 import { runScheduledTelegramDelivery, sendTelegramNewsMessage, telegramNewsFingerprint, type TelegramNewsFetchResult, type TelegramNewsItem } from "../telegramNews";
 import { translateTelegramNewsItemsToKhmer } from "../telegramTranslation";
-import { analyzeNewsEffect, buildPreReleaseSignals, fetchPublicEconomicCalendar, filterPreReleaseSignals, formatPreReleaseSignalMessage, highImpactSignalFingerprint, selectUndeliveredPreReleaseSignals } from "../highImpactNews";
+import { analyzeNewsEffect, buildPreReleaseSignals, buildVerifiedEventEvidence, fetchPublicEconomicCalendar, filterPreReleaseSignals, formatPreReleaseSignalMessage, highImpactSignalFingerprint, selectUndeliveredPreReleaseSignals } from "../highImpactNews";
 import { ENV } from "./env";
 import { invokeLLM } from "./llm";
 import { sdk } from "./sdk";
@@ -36,6 +36,10 @@ const MARKET_SYMBOLS = {
 function safeNumber(value: unknown, fallback = 0) {
   const number = typeof value === "number" ? value : Number(value);
   return Number.isFinite(number) ? number : fallback;
+}
+
+export function resolveMarketWatchHeadlineEvidence(symbol: string, headlineResult: TelegramNewsFetchResult | null) {
+  return headlineResult ? buildHeadlineEvidenceForSymbol(symbol, headlineResult) : { status: "not_requested" as const, sourceFailures: [], headlines: [] };
 }
 
 async function fetchLiveMarketPrices(): Promise<Record<string, LivePrice>> {
@@ -221,7 +225,7 @@ async function callUserSuppliedAI(provider: string, apiKey: string, messages: Ar
 
 async function reviewAutoSignalWithBackendProviders(candidate: { symbol: string; direction: string; entryPrice: number; stopLoss: number; takeProfit: number; confidence: number; technicalScore: number; strategyScore: number; fundamentalScore: number; intelligenceScore: number; rationale: string }) {
   const messages = [
-    { role: "system", content: "You are a cautious market-analysis reviewer. Do not give financial advice or claim certainty. Review only the supplied deterministic setup. Return strict JSON: {\"approve\":boolean,\"note\":string}. Approve only when the stated scores, risk/reward, and rationale are internally consistent." },
+    { role: "system", content: "You are a cautious market-analysis reviewer. Do not give financial advice, infer unsupplied news, or claim certainty. Review only the supplied deterministic setup. Return strict JSON: {\"approve\":boolean,\"note\":string}. Approve only when the stated technical, strategy, fundamental, and intelligence scores are internally consistent; the risk/reward is valid; the rationale states a conditional scenario and invalidation; and no claim exceeds the supplied evidence. Reject vague, contradictory, or unsupported setups." },
     { role: "user", content: JSON.stringify(candidate) },
   ];
   const providers = [["gemini", ENV.geminiApiKey], ["openai", ENV.openAiApiKey], ["anthropic", ENV.anthropicApiKey], ["grok", ENV.openRouterApiKey]] as const;
@@ -295,9 +299,9 @@ function isRelevantNewsItem(item: Record<string, unknown>, category: string): bo
   return (category === "all" || category === inferred) && Boolean(inferred);
 }
 
-async function fetchTelegramNewsItems(): Promise<TelegramNewsFetchResult> {
+async function fetchTelegramNewsItems(options: { symbols?: string[]; includeCryptoRss?: boolean } = {}): Promise<TelegramNewsFetchResult> {
   const sourceFailures: string[] = [];
-  const trackedSymbols = ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"];
+  const trackedSymbols = options.symbols || ["BTCUSDT", "ETHUSDT", "SOLUSDT", "XRPUSDT", "EURUSD", "GBPUSD", "USDJPY", "AUDUSD", "USDCAD"];
   const yahoo = await Promise.all(trackedSymbols.map(async (querySymbol) => {
     const category = isTrackedMarketSymbol(querySymbol);
     if (!category) return [] as TelegramNewsItem[];
@@ -318,10 +322,11 @@ async function fetchTelegramNewsItems(): Promise<TelegramNewsFetchResult> {
       }).filter((item: TelegramNewsItem) => isRelevantNewsItem(item as unknown as Record<string, unknown>, "all"));
     } catch { sourceFailures.push(`Yahoo:${querySymbol}`); return [] as TelegramNewsItem[]; }
   }));
-  const rss = await Promise.all([
+  const rssSources = [
     { url: "https://www.coindesk.com/arc/outboundfeeds/rss/", name: "CoinDesk RSS" },
     { url: "https://cointelegraph.com/rss", name: "Cointelegraph RSS" },
-  ].map(async (source) => {
+  ];
+  const rss = options.includeCryptoRss === false ? [] : await Promise.all(rssSources.map(async (source) => {
     try {
       const response = await fetch(source.url, { headers: { "User-Agent": "MarketLiveCharts/1.0" }, signal: AbortSignal.timeout(8000) });
       if (!response.ok) { sourceFailures.push(`${source.name}:${response.status}`); return [] as TelegramNewsItem[]; }
@@ -625,9 +630,19 @@ async function startServer() {
     try {
       const { symbol, strategy, timeframe, currentPrice, customPrompt } = req.body || {};
       const chartContext = await fetchLiveChartContext(String(symbol || ""));
-      const [macroSnapshot, cryptoSnapshot] = await Promise.all([fetchMacroIndicators(), inferWatchDomain(String(symbol || "")) === "crypto" ? fetchCryptoMetrics(String(symbol || "").split(":").pop() || "BTCUSDT") : Promise.resolve(null)]);
+      const needsHeadlineEvidence = /news|macro/i.test(`${strategy || ""} ${customPrompt || ""}`);
+      const marketDomain = inferWatchDomain(String(symbol || ""));
+      const headlineSymbol = String(symbol || "").split(":").pop()?.toUpperCase() || "";
+      const [macroSnapshot, cryptoSnapshot, calendarResult, headlineResult] = await Promise.all([
+        fetchMacroIndicators(),
+        marketDomain === "crypto" ? fetchCryptoMetrics(headlineSymbol || "BTCUSDT") : Promise.resolve(null),
+        fetchPublicEconomicCalendar().then((events) => ({ events, sourceAvailable: true })).catch(() => ({ events: [], sourceAvailable: false })),
+        needsHeadlineEvidence ? fetchTelegramNewsItems({ symbols: headlineSymbol ? [headlineSymbol] : undefined, includeCryptoRss: marketDomain === "crypto" }) : Promise.resolve(null),
+      ]);
+      const eventEvidence = buildVerifiedEventEvidence(calendarResult.events, { sourceAvailable: calendarResult.sourceAvailable, horizonHours: 24 });
+      const headlineEvidence = resolveMarketWatchHeadlineEvidence(String(symbol || ""), headlineResult);
       const providers = ["gemini", "platform"] as const;
-      const prompt = buildMarketWatchValidationPrompt({ symbol: String(symbol || ""), strategy, timeframe, customPrompt, chartContext, macroContext: macroSnapshot, cryptoContext: cryptoSnapshot });
+      const prompt = buildMarketWatchValidationPrompt({ symbol: String(symbol || ""), strategy, timeframe, customPrompt, chartContext, macroContext: macroSnapshot, cryptoContext: cryptoSnapshot, eventEvidence, headlineEvidence });
       const messages = [{ role: "system", content: "You are a careful market analysis provider. Return valid JSON only, grounded in live data, with BUY or SELL only." }, { role: "user", content: prompt }];
       const candidates: WatchCandidate[] = [];
       const statuses: Array<{ provider: string; status: "ok" | "failed"; recommendation?: "BUY" | "SELL"; error?: string }> = [];
@@ -648,7 +663,7 @@ async function startServer() {
         const candidate = candidates.find((item) => item.provider === status.provider);
         return candidate ? { ...status, recommendation: normalizeSignalPayload(candidate.payload, fallbackPrice, candidate.text).recommendation } : status;
       });
-      res.json({ ...consensus, symbol, strategy, timeframe, modelUsed: "unified-market-watch", providerStatuses: resolvedStatuses, chartContext: { symbol: chartContext.symbol, yahooSymbol: chartContext.yahooSymbol, historical: chartContext.historical } });
+      res.json({ ...consensus, symbol, strategy, timeframe, modelUsed: "unified-market-watch", providerStatuses: resolvedStatuses, eventEvidence, headlineEvidence, chartContext: { symbol: chartContext.symbol, yahooSymbol: chartContext.yahooSymbol, historical: chartContext.historical } });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Unified market watch failed" });
     }
@@ -727,4 +742,4 @@ Return strict JSON with recommendation (BUY or SELL), confidence (0-100), entryP
   });
 }
 
-startServer().catch(console.error);
+if (process.env.NODE_ENV !== "test") startServer().catch(console.error);

@@ -16,6 +16,9 @@ describe('market research knowledge layer', () => {
     const context = getKnowledgePromptContext('crypto');
     expect(context).toContain('Never invent data');
     expect(context).toContain('structural invalidation');
+    expect(context).toContain('verify the calendar state');
+    expect(context).toContain('never promise profit or a win rate');
     expect(context).toContain('Crypto Fundamental Due Diligence');
+    expect(context).toContain('Evidence, Event & Uncertainty Discipline');
   });
 });

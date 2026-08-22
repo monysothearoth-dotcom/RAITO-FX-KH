@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, MessageSquare, HelpCircle, ArrowRight, CornerDownRight, Cpu, User, RefreshCw } from 'lucide-react';
 import { MarketTicker } from '../types';
 import { getKnowledgePromptContext, inferResearchDomain } from '../lib/marketKnowledge';
+import { verifiedEventEvidenceLabel, verifiedHeadlineEvidenceLabel } from './VerifiedEventEvidence';
 
 interface ChatMessage {
   id: string;
@@ -131,11 +132,13 @@ Try asking:
 
       const data = await res.json();
       
-      const signalSummary = data.recommendation ? `\n\n**Unified Market Watch:** ${data.recommendation} · ${data.confidence}% confidence\n**Entry:** ${data.entryPrice} · **Stop:** ${data.stopLoss} · **Take Profit:** ${data.takeProfit}\n**Consensus:** ${data.agreementPercent || 0}% agreement across ${data.providersAnalyzed?.length || 0} providers\n**Risk:** ${data.warning || 'Review the provider warnings before acting.'}` : '';
+      const eventSummary = data.eventEvidence ? `\n\n**Verified event check:** ${verifiedEventEvidenceLabel(data.eventEvidence)}` : '';
+      const headlineSummary = data.headlineEvidence ? `\n**Verified headlines:** ${verifiedHeadlineEvidenceLabel(data.headlineEvidence)}` : '';
+      const signalSummary = data.recommendation ? `\n\n**Unified Market Watch:** ${data.recommendation} · ${data.confidence}% scenario confidence\n**Entry:** ${data.entryPrice} · **Stop:** ${data.stopLoss} · **Take Profit:** ${data.takeProfit}\n**Consensus:** ${data.agreementPercent || 0}% agreement across ${data.providersAnalyzed?.length || 0} providers\n**Risk:** ${data.warning || 'Review the provider warnings before acting.'}` : '';
       const assistantMsg: ChatMessage = {
         id: Math.random().toString(),
         role: 'assistant',
-        text: `${data.consensusRationale || 'Unified Market Watch completed the live-chart analysis.'}${signalSummary}`
+        text: `${data.consensusRationale || 'Unified Market Watch completed the live-chart analysis.'}${eventSummary}${headlineSummary}${signalSummary}`
       };
 
       if (data.action) {

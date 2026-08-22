@@ -65,3 +65,12 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Reorganize the Market Pulse pair list into clean, readable market groups with stable ordering and responsive behavior.
 - [x] Add focused regression tests and validate the revised desktop and mobile interface before saving the update.
 - [x] Implement a substantive Economic Calendar & News workspace refinement with clear decision context, consolidated live-alert status, and updated validation evidence.
+- [x] Audit News Analyze mode for unsupported high-impact-event claims and trace the live evidence available to its shared market-analysis request.
+- [x] Pass verified calendar and headline evidence, including explicit no-high-impact-event states, into News Analyze mode.
+- [x] Strengthen the shared RAITO trading-research framework with structured evidence, uncertainty, invalidation, and risk-boundary requirements for RAITO Agent, Signal Analyze, and All-in-One.
+- [x] Strengthen Auto Signal AI review criteria without weakening deterministic confluence and lifecycle controls.
+- [x] Add regression coverage to prevent unsupported high-impact-news claims and validate the grounded trading-research contracts.
+- [x] Add verified market-news headline evidence to News Analyze mode and test that supplied headlines are used without inventing unavailable sources or events.
+- [x] Filter News Analyze headline evidence to the active symbol or market domain so unrelated crypto and Forex headlines cannot cross into the analysis.
+- [x] Add dual-domain regression and smoke validation confirming only symbol-relevant headlines enter News Analyze and empty or unavailable states remain truthful.
+- [x] Add route-level coverage for no-relevant-headline and unavailable-headline status mapping after symbol filtering, then validate the controlled evidence states.

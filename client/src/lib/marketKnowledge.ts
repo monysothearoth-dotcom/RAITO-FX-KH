@@ -61,10 +61,24 @@ export const RESEARCH_MODULES: ResearchModule[] = [
     lessons: ['Start with regime and higher-timeframe thesis, then add macro/fundamental context, then execution structure.', 'Require agreement between at least two independent evidence groups; do not double-count correlated indicators.', 'Return one setup only when entry, stop, target, expected risk/reward, and invalidation are coherent; otherwise report that no qualified setup is available.'],
     checklist: ['Context is live and timestamped.', 'The thesis explains both direction and invalidation.', 'The final setup is backtested or paper-tested before real capital is considered.'],
     sourceLabel: 'Research workflow assembled for this terminal', sourceUrl: 'https://www.bis.org/statistics/rpfx25.htm'
+  },
+  {
+    id: 'shared-evidence-discipline', domain: 'shared', title: 'Evidence, Event & Uncertainty Discipline', level: 'Advanced',
+    summary: 'Treat source freshness, verified calendar state, evidence gaps, and uncertainty as first-class parts of a market thesis.',
+    lessons: ['Name a macro or high-impact event only when it is present in the verified calendar evidence.', 'When the calendar is unavailable, state that verification failed rather than claiming a quiet schedule.', 'Separate a market observation from a scenario assumption, and never turn scenario confidence into a win-rate claim.'],
+    checklist: ['Each catalyst is traceable to supplied data.', 'No high-impact release is named when verified event state is absent.', 'Evidence gaps and the condition required for confirmation are visible.'],
+    sourceLabel: 'RAITO evidence-grounding framework', sourceUrl: 'https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/ForexTradingRisks.html'
+  },
+  {
+    id: 'shared-trade-lifecycle', domain: 'shared', title: 'Trade Lifecycle & Review', level: 'Advanced',
+    summary: 'Plan entry, invalidation, execution friction, and review before treating a market scenario as actionable research.',
+    lessons: ['Position risk is defined before entry; confidence does not determine leverage.', 'Spread, slippage, session liquidity, and scheduled event windows can invalidate an otherwise coherent chart setup.', 'Review closed scenarios against the original thesis and invalidation instead of retrospectively changing the rationale.'],
+    checklist: ['Entry, invalidation, stop, target, and risk boundary are mutually consistent.', 'The scenario can be paper-tested before capital is considered.', 'Post-trade notes preserve evidence, decision, and outcome separately.'],
+    sourceLabel: 'RAITO risk and review framework', sourceUrl: 'https://www.cftc.gov/LearnAndProtect/AdvisoriesAndArticles/ForexTradingRisks.html'
   }
 ];
 
-export const MARKET_KNOWLEDGE_PROMPT_CONTEXT = `Use the terminal research library as a decision framework, not as a guarantee. For every live analysis: (1) classify regime and higher-timeframe structure; (2) incorporate relevant Forex macro or Crypto fundamental context; (3) confirm execution with price, volatility, liquidity, and multi-timeframe evidence; (4) define entry, structural invalidation, stop, target, and risk/reward; (5) reject setups with contradictory evidence, excessive event/liquidity risk, or missing live values. Never invent data, never promise profit, and return one BUY or SELL only when the strongest qualified setup is coherent.`;
+export const MARKET_KNOWLEDGE_PROMPT_CONTEXT = `Use the RAITO research library as an evidence-led decision framework, not a guarantee. For every live analysis: (1) classify regime and higher-timeframe structure; (2) reconcile relevant Forex macro or Crypto fundamental and microstructure context; (3) verify the calendar state and name only supplied events or headlines; (4) confirm execution with price, volatility, liquidity, and multi-timeframe evidence; (5) define entry, structural invalidation, stop, target, risk/reward, and the condition that would invalidate the scenario; (6) surface missing evidence, stale data, or event/liquidity risk. Never invent data or sources, never promise profit or a win rate, and present any BUY/SELL output as a conditional research scenario rather than execution advice.`;
 
 export function getKnowledgePromptContext(domain: ResearchDomain = 'shared'): string {
   const relevant = RESEARCH_MODULES.filter((module) => module.domain === domain || module.domain === 'shared').map((module) => `${module.title}: ${module.summary}`).join(' | ');

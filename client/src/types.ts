@@ -94,6 +94,18 @@ export interface SignalReport {
   setupScore?: number;
   riskReward?: number;
   selectionReason?: string;
+  eventEvidence?: {
+    status: 'upcoming_high_impact' | 'no_upcoming_high_impact' | 'unavailable';
+    checkedAt: number;
+    horizonHours: number;
+    source: string;
+    highImpactEvents: Array<{ event: string; currency: string; scheduledAt: number; minutesUntil: number }>;
+  };
+  headlineEvidence?: {
+    status: 'available' | 'no_relevant_headlines' | 'unavailable' | 'not_requested';
+    sourceFailures: string[];
+    headlines: Array<{ title: string; source: string; timestamp: number; category: string; relatedCurrency: string }>;
+  };
 }
 
 export interface MarketTicker {

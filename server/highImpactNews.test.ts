@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { analyzeNewsEffect, buildPreReleaseSignals, filterPreReleaseSignals, formatPreReleaseSignalMessage, highImpactSignalFingerprint, isWithinPreReleaseWindow, marketEffectLabel, selectUndeliveredPreReleaseSignals } from "./highImpactNews";
+import { analyzeNewsEffect, buildPreReleaseSignals, buildVerifiedEventEvidence, filterPreReleaseSignals, formatPreReleaseSignalMessage, highImpactSignalFingerprint, isWithinPreReleaseWindow, marketEffectLabel, selectUndeliveredPreReleaseSignals } from "./highImpactNews";
 
 const now = Date.parse("2026-08-19T10:00:00.000Z");
 const event = { time: "2026-08-19T10:15:00.000Z", timestamp: now + 15 * 60_000, currency: "USD", event: "CPI release", impact: "high" as const, forecast: "3.1", previous: "3.0" };
@@ -22,6 +22,17 @@ describe("high-impact news analysis", () => {
     expect(isWithinPreReleaseWindow(event, now, 15)).toBe(true);
     expect(isWithinPreReleaseWindow(event, now - 60_000, 15)).toBe(false);
     expect(isWithinPreReleaseWindow(event, now + 16 * 60_000, 15)).toBe(false);
+  });
+
+  it("reports upcoming, absent, and unavailable high-impact-event states without inventing a release", () => {
+    const upcoming = buildVerifiedEventEvidence([event], { now, horizonHours: 24, sourceAvailable: true });
+    const absent = buildVerifiedEventEvidence([{ ...event, timestamp: now + 30 * 60 * 60_000 }], { now, horizonHours: 24, sourceAvailable: true });
+    const unavailable = buildVerifiedEventEvidence([], { now, sourceAvailable: false });
+    expect(upcoming.status).toBe("upcoming_high_impact");
+    expect(upcoming.highImpactEvents[0]).toMatchObject({ event: "CPI release", currency: "USD", minutesUntil: 15 });
+    expect(absent.status).toBe("no_upcoming_high_impact");
+    expect(absent.highImpactEvents).toEqual([]);
+    expect(unavailable.status).toBe("unavailable");
   });
 
   it("filters signals to monitored instruments and formats a clear alert", () => {
