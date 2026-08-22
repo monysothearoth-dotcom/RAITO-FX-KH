@@ -47,3 +47,18 @@ The automatic monitor retains the deterministic technical, strategy, fundamental
 ### Khmer News Alert Translation
 
 News Alert now translates headlines through a Claude Haiku Khmer-first flow that returns a validated JSON mapping per headline. If that provider is temporarily unavailable or returns no usable Khmer text, the delivery path securely retries with the server-side Gemini key. English is retained only when neither translation provider returns valid Khmer, and the scheduled-delivery logs now state that fallback condition instead of failing silently.
+
+### Market-Data Providers
+
+The active market-data configuration is intentionally server-managed. Alpha Vantage provides a stock-quote fallback and CoinGecko provides a cryptocurrency fallback; neither secret is exposed to browser sessions or stored in the database. The earlier IEX Cloud integration and all browser-side API-key override fields have been removed.
+
+EODHD is compatible with the application as a future server-only provider. Its REST quote endpoint authenticates with an `api_token` query parameter and can return delayed stock and forex quotes, but the provider must not be activated until the owner supplies a valid `EODHD_API_TOKEN` project secret. Do not use a public or demo token in the application. The official documentation describes delayed stock quotes, approximately one-minute forex delay, endpoint-specific coverage, and usage limits; verify the owner’s subscription supports the intended symbols before enabling it. [1] [2] [3]
+
+If Raito-FX Pro is made available commercially or is operated by a regulated individual, institution, or business, confirm the applicable EODHD commercial license with EODHD before using its data. The provider states that its pricing-page packages are for personal use and describes a separate commercial-use process. [4]
+
+#### References
+
+[1]: https://github.com/EodHistoricalData/eodhd-openapi/blob/main/components/securitySchemes.yaml "EODHD OpenAPI authentication scheme"
+[2]: https://eodhd.com/financial-apis/live-ohlcv-stocks-api "EODHD live delayed quote API"
+[3]: https://eodhd.com/financial-apis/api-limits "EODHD API limits"
+[4]: https://eodhd.com/financial-apis/commercial-vs-personal-license-use "EODHD commercial versus personal license use"

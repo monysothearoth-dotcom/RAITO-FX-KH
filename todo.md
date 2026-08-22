@@ -53,3 +53,8 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Validate the secure provider configuration and simplified interface through tests, build, and responsive preview.
 - [x] Verify the simplified two-provider market-data settings on a mobile viewport, confirming no API-key inputs or layout overflow.
 - [x] Remove IEX Cloud from provider configuration and retain only Alpha Vantage and CoinGecko as secure backend-only providers.
+- [x] Review the supplied EODHD API material for compatible market-data endpoints, authentication, rate limits, and licensing constraints.
+- [x] Confirm the official EODHD commercial-use prerequisite for any future public or business deployment.
+- [ ] Add EODHD only as a backend-only provider, with a dedicated secret and no browser key overrides, if the documentation and user plan support it.
+- [ ] Validate any EODHD implementation with credential, contract, build, and responsive settings checks.
+- [x] Record that EODHD integration is deferred until the owner provides a valid EODHD API token; preserve Alpha Vantage and CoinGecko as the active backend-only providers.
