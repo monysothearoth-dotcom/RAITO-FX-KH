@@ -33,7 +33,6 @@ interface StrategyBacktesterProps {
   selectedStrategy: string;
   onSelectSymbol: (symbol: string) => void;
   onSelectStrategy: (strategy: string) => void;
-  customApiKey?: string;
 }
 
 export interface BacktestTrade {
@@ -75,8 +74,7 @@ export default function StrategyBacktester({
   tickers,
   selectedStrategy,
   onSelectSymbol,
-  onSelectStrategy,
-  customApiKey
+  onSelectStrategy
 }: StrategyBacktesterProps) {
   // Backtest Parameters State
   const [initialCapital, setInitialCapital] = useState<number>(10000);

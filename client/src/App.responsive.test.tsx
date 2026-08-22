@@ -12,9 +12,9 @@ describe("responsive dashboard view routing", () => {
     for (const view of views) expect(getInitialDashboardTab(view)).toBe(view);
   });
 
-  it("keeps the requested analysis tools adjacent after Auto Signal Analyze", () => {
-    expect(dashboardNavigationOrder.slice(1, 6)).toEqual(["auto_signals", "signals", "all_in_one", "agent", "news"]);
-    expect(dashboardNavigationOrder.slice(6)).toEqual(["pulse", "research", "alerts", "journal", "analytics", "list"]);
+  it("promotes All Assets first and keeps the requested analysis tools adjacent", () => {
+    expect(dashboardNavigationOrder.slice(0, 7)).toEqual(["list", "markets", "auto_signals", "signals", "all_in_one", "agent", "news"]);
+    expect(dashboardNavigationOrder.slice(7)).toEqual(["pulse", "research", "alerts", "journal", "analytics"]);
   });
 
   it("renders the actual navigation wrapper with responsive overflow classes", () => {

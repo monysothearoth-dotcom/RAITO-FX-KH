@@ -58,7 +58,7 @@ export const responsiveHeaderNavClassName = 'flex items-center gap-1.5 overflow-
 
 export type DashboardTab = 'markets' | 'auto_signals' | 'pulse' | 'signals' | 'all_in_one' | 'agent' | 'news' | 'research' | 'list' | 'alerts' | 'journal' | 'analytics' | 'account';
 
-export const dashboardNavigationOrder: DashboardTab[] = ['markets', 'auto_signals', 'signals', 'all_in_one', 'agent', 'news', 'pulse', 'research', 'alerts', 'journal', 'analytics', 'list'];
+export const dashboardNavigationOrder: DashboardTab[] = ['list', 'markets', 'auto_signals', 'signals', 'all_in_one', 'agent', 'news', 'pulse', 'research', 'alerts', 'journal', 'analytics'];
 
 export function ResponsiveHeaderNav({ children }: { children: React.ReactNode }) {
   return <nav className={responsiveHeaderNavClassName}>{children}</nav>;
@@ -146,30 +146,6 @@ export default function App() {
   }, []);
 
   
-  // Lifted Global Gemini API Key State for unmetered live intelligence
-  const [customApiKey, setCustomApiKey] = useState<string>(() => {
-    try {
-      return localStorage.getItem('raito_custom_api_key') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  useEffect(() => {
-    try {
-      if (customApiKey) {
-        localStorage.setItem('raito_custom_api_key', customApiKey);
-      }
-    } catch {}
-  }, [customApiKey]);
-
-  const handleApiKeyChange = (val: string) => {
-    setCustomApiKey(val);
-    try {
-      localStorage.setItem('raito_custom_api_key', val);
-    } catch {}
-  };
-
   // Real-Time Reliable Market Data Feeds States
   const [apiProvider, setApiProvider] = useState<string>(() => {
     try {
@@ -598,6 +574,18 @@ export default function App() {
             {/* Main Tabs Navigation */}
             <ResponsiveHeaderNav>
               <button
+                onClick={() => setActiveTab('list')}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'list'
+                    ? 'bg-amber-500 text-slate-950 font-black shadow-md shadow-amber-500/20'
+                    : 'text-slate-300 hover:text-white'
+                }`}
+                id="tab-all-assets"
+              >
+                <SlidersHorizontal className="h-3.5 w-3.5" />
+                All Assets
+              </button>
+              <button
                 onClick={() => setActiveTab('markets')}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'markets'
@@ -653,7 +641,7 @@ export default function App() {
                 }`}
               >
                 <Cpu className="h-3.5 w-3.5" />
-                AI Agent
+                RAITO Agent
               </button>
               <button
                 onClick={() => setActiveTab('research')}
@@ -727,18 +715,6 @@ export default function App() {
                 <PieChartIcon className="h-3.5 w-3.5" />
                 Analytics
               </button>
-              {/* Assets list Tab visible only on mobile screens (hidden on desktop) */}
-              <button
-                onClick={() => setActiveTab('list')}
-                className={`lg:hidden px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'list'
-                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <SlidersHorizontal className="h-3.5 w-3.5" />
-                All Assets
-              </button>
             </ResponsiveHeaderNav>
           </div>
 
@@ -787,7 +763,7 @@ export default function App() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           
           {/* PERSISTENT LEFT SIDEBAR FOR DESKTOP (Always visible on large screens) */}
-          <aside className="hidden lg:flex lg:col-span-4 flex-col gap-6 w-full">
+          {activeTab !== 'list' && <aside className="hidden lg:flex lg:col-span-4 flex-col gap-6 w-full">
             <div className="flex items-center bg-slate-900 p-1.5 rounded-2xl border border-slate-800 font-mono text-xs font-bold gap-1 w-full">
               <button
                 onClick={() => setSidebarTab('markets')}
@@ -830,10 +806,10 @@ export default function App() {
               />
             )}
             <TechnicalAnalysisWidget symbol={selectedSymbol} />
-          </aside>
+          </aside>}
 
           {/* DYNAMIC TAB CONTENT AREA WITH SMOOTH MOTION ANIMATIONS */}
-          <section className="lg:col-span-8 flex flex-col gap-6 w-full">
+          <section className={`${activeTab === 'list' ? 'lg:col-span-12' : 'lg:col-span-8'} flex flex-col gap-6 w-full`}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -878,8 +854,6 @@ export default function App() {
                       onSymbolChange={setSelectedSymbol}
                       selectedStrategy={selectedStrategy}
                       onStrategyChange={setSelectedStrategy}
-                      customApiKey={customApiKey}
-                      onApiKeyChange={handleApiKeyChange}
                     />
                     <div className="lg:hidden">
                       <TechnicalAnalysisWidget symbol={selectedSymbol} />
@@ -893,7 +867,6 @@ export default function App() {
                     activeTicker={activeTicker}
                     tickers={tickers}
                     onSelectTicker={handleSwitchAsset}
-                    customApiKey={customApiKey}
                     onOpenJournalWithSignal={(signal) => {
                       setActiveTab('journal');
                     }}
@@ -908,13 +881,12 @@ export default function App() {
                     selectedStrategy={selectedStrategy}
                     onSwitchAsset={handleSwitchAsset}
                     onSwitchStrategy={handleSwitchStrategy}
-                    customApiKey={customApiKey}
                   />
                 )}
 
                 {/* 4. Hot News Intel Tab */}
                 {activeTab === 'news' && (
-                  <MarketNews symbol={selectedSymbol} symbols={tickers.map((ticker) => ticker.symbol)} customApiKey={customApiKey} />
+                  <MarketNews symbol={selectedSymbol} symbols={tickers.map((ticker) => ticker.symbol)} />
                 )}
 
                 {/* Remaining workspace: Market Pulse */}
@@ -939,9 +911,10 @@ export default function App() {
                   </div>
                 )}
 
-                {/* 6. Mobile-Only Assets List View Tab */}
+                {/* 6. All Assets primary workspace */}
                 {activeTab === 'list' && (
                   <div className="flex flex-col gap-6">
+                    <div className="rounded-3xl border border-amber-500/25 bg-[radial-gradient(circle_at_92%_0%,rgba(245,158,11,0.14),transparent_40%),linear-gradient(135deg,rgba(15,23,42,0.98),rgba(17,24,39,0.94))] p-4 sm:p-5"><div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><div className="text-[10px] font-black uppercase tracking-[0.16em] text-amber-300">Primary market workspace</div><h1 className="mt-1 text-xl font-black text-white sm:text-2xl">All Assets, organized for faster context.</h1><p className="mt-1 max-w-2xl text-xs leading-relaxed text-slate-400">Browse the complete market universe, preserve your watchlist, and select an instrument before moving into charting, signal analysis, or the unified AI engine.</p></div><span className="rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2 text-[10px] font-mono text-slate-400">{tickers.length} live instruments</span></div></div>
                     <MarketList
                       tickers={tickers}
                       selectedSymbol={selectedSymbol}

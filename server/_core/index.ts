@@ -623,18 +623,16 @@ async function startServer() {
 
   app.post("/api/market-watch", async (req, res) => {
     try {
-      const { symbol, strategy, timeframe, currentPrice, customPrompt, watchProviders = [], apiKeys = {}, customApiKey } = req.body || {};
+      const { symbol, strategy, timeframe, currentPrice, customPrompt } = req.body || {};
       const chartContext = await fetchLiveChartContext(String(symbol || ""));
       const [macroSnapshot, cryptoSnapshot] = await Promise.all([fetchMacroIndicators(), inferWatchDomain(String(symbol || "")) === "crypto" ? fetchCryptoMetrics(String(symbol || "").split(":").pop() || "BTCUSDT") : Promise.resolve(null)]);
-      const requestedProviders = Array.isArray(watchProviders) ? watchProviders.map((value: unknown) => String(value).toLowerCase()) : [];
-      const providers = Array.from(new Set(["gemini", ...requestedProviders, "platform"])).filter((provider) => provider === "platform" || Boolean(AI_ENDPOINTS[provider]));
+      const providers = ["gemini", "platform"] as const;
       const prompt = buildMarketWatchValidationPrompt({ symbol: String(symbol || ""), strategy, timeframe, customPrompt, chartContext, macroContext: macroSnapshot, cryptoContext: cryptoSnapshot });
       const messages = [{ role: "system", content: "You are a careful market analysis provider. Return valid JSON only, grounded in live data, with BUY or SELL only." }, { role: "user", content: prompt }];
-      const suppliedKeys = apiKeys && typeof apiKeys === "object" ? apiKeys as Record<string, unknown> : {};
       const candidates: WatchCandidate[] = [];
       const statuses: Array<{ provider: string; status: "ok" | "failed"; recommendation?: "BUY" | "SELL"; error?: string }> = [];
       await Promise.all(providers.map(async (provider) => {
-        const key = provider === "gemini" ? String(suppliedKeys.gemini || customApiKey || process.env.USER_GEMINI_API_KEY || "") : String(suppliedKeys[provider] || "");
+        const key = provider === "gemini" ? ENV.geminiApiKey || process.env.USER_GEMINI_API_KEY || "" : "";
         try {
           const text = provider === "platform" ? await callPlatformAI(messages) : await callUserSuppliedAI(provider, key, messages);
           candidates.push({ provider, text, payload: parseStructuredAiJson(text) || { rationale: text } });

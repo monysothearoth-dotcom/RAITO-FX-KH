@@ -58,3 +58,10 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [ ] Add EODHD only as a backend-only provider, with a dedicated secret and no browser key overrides, if the documentation and user plan support it.
 - [ ] Validate any EODHD implementation with credential, contract, build, and responsive settings checks.
 - [x] Record that EODHD integration is deferred until the owner provides a valid EODHD API token; preserve Alpha Vantage and CoinGecko as the active backend-only providers.
+- [x] Inspect the Auto Signal Analyze, Signal Analyze, All-in-One AI Engine, AI Agent, Economic Calendar & News, All Assets, and Market Pulse implementations for the requested interface improvements.
+- [x] Move All Assets to the first primary workspace position while preserving direct navigation to all analysis tools.
+- [x] Rename AI Agent to RAITO Agent consistently in navigation and workspace presentation.
+- [x] Strengthen the primary analysis workspaces with clearer hierarchy, actionable controls, and concise live-context presentation.
+- [x] Reorganize the Market Pulse pair list into clean, readable market groups with stable ordering and responsive behavior.
+- [x] Add focused regression tests and validate the revised desktop and mobile interface before saving the update.
+- [x] Implement a substantive Economic Calendar & News workspace refinement with clear decision context, consolidated live-alert status, and updated validation evidence.

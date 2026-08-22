@@ -109,6 +109,14 @@ export function telegramHealthLabel(status?: string): string {
   return 'DISABLED';
 }
 
+export function getNewsDecisionContext(input: { activeTab: 'calendar' | 'news'; calendarCount: number; newsCount: number; alertsEnabled?: boolean }) {
+  return [
+    { label: 'Priority queue', value: input.activeTab === 'calendar' ? 'Review event risk first' : 'Review headline impact', detail: input.activeTab === 'calendar' ? 'Calendar workflow active' : 'Breaking-news workflow active', tone: 'amber' },
+    { label: 'Live coverage', value: `${input.calendarCount} events · ${input.newsCount} headlines`, detail: 'Current workspace inventory', tone: 'cyan' },
+    { label: 'Scheduled alerts', value: input.alertsEnabled ? 'Delivery monitor active' : 'Alerts on standby', detail: input.alertsEnabled ? 'Deduplicated 60-second checks' : 'Owner activation required', tone: input.alertsEnabled ? 'emerald' : 'slate' },
+  ] as const;
+}
+
 export const responsiveNewsBannerClassName = 'bg-slate-950 border border-slate-800 rounded-2xl p-2.5 flex flex-wrap sm:flex-nowrap items-center justify-between gap-2 sm:gap-3 overflow-hidden shadow-inner';
 export const responsiveNewsMarqueeClassName = 'flex-1 min-w-[140px] overflow-hidden relative mx-0 sm:mx-2 order-3 sm:order-none basis-full sm:basis-auto';
 
@@ -157,10 +165,9 @@ export function TelegramAlertAction({
 interface MarketNewsProps {
   symbol: string;
   symbols?: string[];
-  customApiKey?: string;
 }
 
-export default function MarketNews({ symbol, symbols = [], customApiKey }: MarketNewsProps) {
+export default function MarketNews({ symbol, symbols = [] }: MarketNewsProps) {
   const telegramUtils = trpc.useUtils();
   const telegramStatus = trpc.telegramNews.status.useQuery(undefined, { retry: false });
   const enableTelegram = trpc.telegramNews.enable.useMutation({ onSuccess: () => telegramUtils.telegramNews.status.invalidate() });
@@ -201,6 +208,7 @@ export default function MarketNews({ symbol, symbols = [], customApiKey }: Marke
   const [highImpactLeadMinutes, setHighImpactLeadMinutes] = useState(15);
   const [highImpactInstruments, setHighImpactInstruments] = useState('XAUUSD,EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,USDCHF,NZDUSD');
   const trackedSymbols = useMemo(() => symbols.length > 0 ? symbols.join(',') : symbol, [symbols, symbol]);
+  const decisionContext = useMemo(() => getNewsDecisionContext({ activeTab, calendarCount: calendarEvents.length, newsCount: newsList.length, alertsEnabled: Boolean(telegramStatus.data?.isEnabled) }), [activeTab, calendarEvents.length, newsList.length, telegramStatus.data?.isEnabled]);
 
   useEffect(() => {
     const status = telegramStatus.data;
@@ -276,7 +284,7 @@ export default function MarketNews({ symbol, symbols = [], customApiKey }: Marke
 
   useEffect(() => {
     fetchNewsAndCalendar(false);
-  }, [symbol, trackedSymbols, customApiKey, selectedCategory]);
+  }, [symbol, trackedSymbols, selectedCategory]);
 
   useEffect(() => {
     if (autoPushInterval === 0) return;
@@ -292,7 +300,7 @@ export default function MarketNews({ symbol, symbols = [], customApiKey }: Marke
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [autoPushInterval, symbol, trackedSymbols, customApiKey, selectedCategory]);
+  }, [autoPushInterval, symbol, trackedSymbols, selectedCategory]);
 
   const rawSymbolStr = typeof symbol === 'string' ? symbol : String(symbol || '');
   const cleanSymbol = rawSymbolStr.split(':').pop() || rawSymbolStr;
@@ -443,7 +451,7 @@ export default function MarketNews({ symbol, symbols = [], customApiKey }: Marke
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="text-base font-black text-white tracking-wide uppercase flex items-center gap-2">
-                <span>Forex &amp; Crypto Live News</span>
+                <span>Economic Calendar &amp; News</span>
               </h3>
               
               {/* Folder Counters */}
@@ -461,7 +469,7 @@ export default function MarketNews({ symbol, symbols = [], customApiKey }: Marke
               </div>
             </div>
             <p className="text-[11px] text-slate-400 mt-0.5">
-              Free public market headlines, crypto announcements, and Forex macro catalysts
+              Prioritize the next high-impact release, then connect live headlines to the selected market before acting.
             </p>
           </div>
         </div>
@@ -529,6 +537,10 @@ export default function MarketNews({ symbol, symbols = [], customApiKey }: Marke
           </div>
         </div>
       )}
+
+      <section className="grid gap-2 sm:grid-cols-3" aria-label="News decision context" data-testid="news-decision-context">
+        {decisionContext.map((item) => <div key={item.label} className={`rounded-2xl border p-3 ${item.tone === 'amber' ? 'border-amber-400/20 bg-amber-400/5' : item.tone === 'cyan' ? 'border-cyan-400/20 bg-cyan-400/5' : item.tone === 'emerald' ? 'border-emerald-400/20 bg-emerald-400/5' : 'border-slate-700 bg-slate-900/70'}`}><p className="text-[9px] font-mono font-black uppercase tracking-[0.12em] text-slate-500">{item.label}</p><p className="mt-1 text-xs font-black text-slate-100">{item.value}</p><p className="mt-0.5 text-[10px] text-slate-500">{item.detail}</p></div>)}
+      </section>
 
       {/* 5. Navigation Switcher & Filters Row */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-slate-950/60 p-2.5 rounded-2xl border border-slate-850">

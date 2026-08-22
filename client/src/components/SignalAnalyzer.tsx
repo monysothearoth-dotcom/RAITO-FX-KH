@@ -24,7 +24,6 @@ import {
   Globe
 } from 'lucide-react';
 import { MarketTicker, SignalReport } from '../types';
-import { getRuntimeAiWatchPayload } from '../lib/aiFallback';
 import { getKnowledgePromptContext, inferResearchDomain } from '../lib/marketKnowledge';
 import StrategyBacktester from './StrategyBacktester';
 import { ConsensusMetadata } from './ConsensusMetadata';
@@ -47,8 +46,6 @@ interface SignalAnalyzerProps {
   onSymbolChange: (symbol: string) => void;
   selectedStrategy: string;
   onStrategyChange: (strategy: string) => void;
-  customApiKey: string;
-  onApiKeyChange: (val: string) => void;
 }
 
 export default function SignalAnalyzer({
@@ -56,16 +53,11 @@ export default function SignalAnalyzer({
   tickers,
   onSymbolChange,
   selectedStrategy,
-  onStrategyChange,
-  customApiKey,
-  onApiKeyChange
+  onStrategyChange
 }: SignalAnalyzerProps) {
   const [report, setReport] = useState<SignalReport | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [fallbackKeysJson, setFallbackKeysJson] = useState(() => {
-    try { return localStorage.getItem('raito_ai_fallback_keys') || '{}'; } catch { return '{}'; }
-  });
   const [activeFilter, setActiveFilter] = useState<'ranging' | 'auto' | 'expired'>('auto');
   const [selectedTimeframe, setSelectedTimeframe] = useState<string>('1h');
   const [loadingStep, setLoadingStep] = useState<string>('');
@@ -110,91 +102,6 @@ export default function SignalAnalyzer({
     }
     handleCustomPromptChange(promptText);
     fetchSignal(promptText);
-  };
-
-  // Telegram Alert States
-  const [telegramBotToken, setTelegramBotToken] = useState(() => {
-    try {
-      return localStorage.getItem('raito_tg_bot_token') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  const [telegramChatId, setTelegramChatId] = useState(() => {
-    try {
-      return localStorage.getItem('raito_tg_chat_id') || '';
-    } catch {
-      return '';
-    }
-  });
-
-  const [showTelegramConfig, setShowTelegramConfig] = useState(true);
-  const [telegramPushing, setTelegramPushing] = useState(false);
-  const [telegramSuccess, setTelegramSuccess] = useState(false);
-  const [telegramError, setTelegramError] = useState<string | null>(null);
-
-  const saveTelegramConfig = (token: string, chatId: string) => {
-    setTelegramBotToken(token);
-    setTelegramChatId(chatId);
-    try {
-      localStorage.setItem('raito_tg_bot_token', token);
-      localStorage.setItem('raito_tg_chat_id', chatId);
-    } catch {}
-  };
-
-  const pushToTelegram = async (reportData?: any) => {
-    const activeReport = reportData || report;
-    if (!activeReport) return;
-    if (!telegramBotToken || !telegramChatId) {
-      setTelegramError("Please configure your Telegram Bot Token and Chat ID first.");
-      setShowTelegramConfig(true);
-      return;
-    }
-
-    setTelegramPushing(true);
-    setTelegramError(null);
-    setTelegramSuccess(false);
-
-    try {
-      const rawSym = typeof activeTicker?.symbol === 'string' ? activeTicker.symbol : String(activeTicker?.symbol || '');
-      const assetCode = rawSym.split(':').pop() || rawSym;
-      const tgMessage = `<b>🚨 RAITO-FX PRO ALGORITHMIC SIGNAL</b>\n\n` +
-        `<b>Asset:</b> <code>${assetCode}</code>\n` +
-        `<b>Strategy:</b> <code>${selectedStrategy}</code> [${selectedTimeframe}]\n` +
-        `<b>Direction:</b> <b>${activeReport.recommendation}</b>\n` +
-        `<b>Confidence:</b> <code>${activeReport.confidence}%</code>\n\n` +
-        `🎯 <b>Entry Price:</b> <code>${activeReport.entryPrice}</code>\n` +
-        `📈 <b>Take Profit:</b> <code>${activeReport.takeProfit}</code>\n` +
-        `🛑 <b>Stop Loss:</b> <code>${activeReport.stopLoss}</code>\n\n` +
-        `💡 <b>Model Rationale:</b>\n<i>${activeReport.rationale}</i>\n\n` +
-        `✨ <i>Sent instantly via Raito-Fx Pro Copilot Hub.</i>`;
-
-      const res = await fetch('/api/telegram-push', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          botToken: telegramBotToken,
-          chatId: telegramChatId,
-          message: tgMessage
-        })
-      });
-
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to push.");
-      }
-
-      setTelegramSuccess(true);
-      setTimeout(() => setTelegramSuccess(false), 5000);
-    } catch (err: any) {
-      console.error(err);
-      setTelegramError(err.message || "Failed to push message. Check parameters.");
-    } finally {
-      setTelegramPushing(false);
-    }
   };
 
   // Journal Logger State and Handler
@@ -437,9 +344,7 @@ export default function SignalAnalyzer({
         strategy: selectedStrategy,
         currentPrice: activeTicker.price,
         timeframe: selectedTimeframe,
-        customApiKey,
-        customPrompt: effectivePrompt,
-        ...getRuntimeAiWatchPayload(customApiKey)
+        customPrompt: effectivePrompt
       });
       let data: any = null;
       let lastError = 'Signal analysis request failed';
@@ -477,11 +382,6 @@ export default function SignalAnalyzer({
 
       if (!data) throw new Error(lastError);
       setReport(data);
-
-      // Automatically push to Telegram if Bot Token and Chat ID are configured
-      if (telegramBotToken && telegramChatId) {
-        pushToTelegram(data);
-      }
 
       // Automatically log to local trade journal
       logSetupToJournal(data);
@@ -693,7 +593,6 @@ export default function SignalAnalyzer({
           selectedStrategy={selectedStrategy}
           onSelectSymbol={onSymbolChange}
           onSelectStrategy={onStrategyChange}
-          customApiKey={customApiKey}
         />
       ) : (
         <>
@@ -853,7 +752,7 @@ export default function SignalAnalyzer({
             <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
               <span>🧠 LLM Prompt Guidance / Custom Bias (Optional Instructions)</span>
             </label>
-            <span className="text-[9px] text-amber-500/80 font-mono">Injected directly into Gemini analysis prompt</span>
+            <span className="text-[9px] text-amber-500/80 font-mono">Applied to the server-managed analysis chain</span>
           </div>
           
           <div className="relative">
@@ -897,62 +796,9 @@ export default function SignalAnalyzer({
           </div>
         </div>
 
-        {/* Custom API Key Input & Trigger Row */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 border-t border-slate-850/60 pt-3">
-          <div className="flex flex-col gap-1.5 md:col-span-2">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
-                <span>🔑 Custom Signal Analyzer API Key</span>
-              </label>
-              {customApiKey && (
-                <span className="text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded font-mono">
-                  ✓ Connected
-                </span>
-              )}
-            </div>
-            <div className="relative">
-              <input
-                type="password"
-                placeholder="Input API key for analyze signal..."
-                value={customApiKey}
-                onChange={(e) => onApiKeyChange(e.target.value)}
-                className="w-full bg-slate-900 border border-slate-850 rounded-lg pl-3 pr-16 py-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-mono transition-colors"
-                id="signal-analyzer-api-key-input"
-              />
-              {customApiKey && (
-                <button
-                  type="button"
-                  onClick={() => onApiKeyChange('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-[9px] font-bold uppercase tracking-widest text-rose-500 hover:text-rose-400 cursor-pointer animate-fade-in"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
-
-          <div className="md:col-span-2 flex flex-col gap-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Fallback API keys (runtime JSON)</label>
-              <span className="text-[9px] text-slate-500">provider keys only; never committed</span>
-            </div>
-            <textarea
-              value={fallbackKeysJson}
-              onChange={(e) => {
-                const value = e.target.value;
-                setFallbackKeysJson(value);
-                try {
-                  const parsed = JSON.parse(value);
-                  if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) localStorage.setItem('raito_ai_fallback_keys', JSON.stringify(parsed));
-                } catch {}
-              }}
-              placeholder='{"openai":"sk-...","groq":"gsk-..."}'
-              rows={2}
-              className="w-full bg-slate-900 border border-slate-850 rounded-lg px-3 py-2 text-[11px] text-slate-200 focus:outline-none focus:border-amber-500 font-mono transition-colors"
-              id="signal-analyzer-fallback-keys-input"
-            />
-          </div>
-
+        {/* Secure server-managed analysis trigger */}
+        <div className="grid grid-cols-1 gap-3 border-t border-slate-850/60 pt-3 md:grid-cols-[minmax(0,1fr)_220px]">
+          <div className="rounded-xl border border-cyan-400/20 bg-cyan-400/5 px-3 py-2.5"><div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-wide text-cyan-200"><ShieldAlert className="h-3.5 w-3.5" />Backend-managed AI and delivery</div><p className="mt-1 text-[10px] leading-relaxed text-slate-400">Provider credentials and Telegram destinations remain on the server. This workspace returns an inspectable analysis and records the setup in the local journal; only Auto Signal monitoring publishes to its dedicated Telegram channel.</p></div>
           <div className="flex items-end">
             <button
               type="button"
@@ -980,68 +826,6 @@ export default function SignalAnalyzer({
           </div>
         </div>
 
-        {/* Telegram Alerts Channel Configuration collapsible block */}
-        <div className="border-t border-slate-850/60 pt-3 flex flex-col gap-2">
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={() => setShowTelegramConfig(!showTelegramConfig)}
-              className="text-[10px] font-bold uppercase tracking-wider text-slate-400 hover:text-white flex items-center gap-1.5 cursor-pointer"
-            >
-              <Settings className="h-3.5 w-3.5 text-amber-500 animate-spin-slow" />
-              <span>✈️ Telegram Private Channel Broadcast Config</span>
-              <span className="text-[9px] lowercase text-slate-500 font-medium font-sans">
-                ({telegramBotToken && telegramChatId ? 'connected' : 'not configured'})
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowTelegramConfig(!showTelegramConfig)}
-              className="text-[9px] text-amber-500 font-bold hover:underline cursor-pointer"
-            >
-              {showTelegramConfig ? 'Collapse' : 'Expand Setup'}
-            </button>
-          </div>
-
-          {showTelegramConfig && (
-            <div className="bg-slate-950/45 border border-slate-850 p-3 rounded-xl flex flex-col gap-3">
-              <p className="text-[10px] text-slate-500 leading-normal">
-                Directly push every generated signal setup to your Telegram private channel or group. 
-                Need help? Create a bot via <b>@BotFather</b>, grab the token, and add your channel's public handle or private chat ID.
-              </p>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] text-slate-400 font-bold uppercase font-mono">Telegram Bot Token</label>
-                  <input
-                    type="password"
-                    placeholder="e.g. 5817293481:AAH8m..."
-                    value={telegramBotToken}
-                    onChange={(e) => saveTelegramConfig(e.target.value, telegramChatId)}
-                    className="bg-slate-900 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-mono"
-                  />
-                </div>
-                <div className="flex flex-col gap-1">
-                  <label className="text-[9px] text-slate-400 font-bold uppercase font-mono">Channel Username or Chat ID</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. @raito_signals or -100xxxxxxxx"
-                    value={telegramChatId}
-                    onChange={(e) => saveTelegramConfig(telegramBotToken, e.target.value)}
-                    className="bg-slate-900 border border-slate-850 rounded-lg p-2 text-xs text-slate-200 focus:outline-none focus:border-amber-500 font-mono"
-                  />
-                </div>
-              </div>
-
-              {telegramBotToken && telegramChatId && (
-                <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-bold font-mono">
-                  <CheckCircle className="h-3 w-3" />
-                  <span>Channel synchronized! Ready to push published signals.</span>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Choose Strategy Matrix Quick Pills */}
@@ -1800,38 +1584,14 @@ export default function SignalAnalyzer({
                   </div>
                 </div>
 
-                {/* Real Integrations Quick Actions Row */}
+                {/* Secure workflow actions row */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2 pt-3 border-t border-slate-900/80">
-                  {/* Push to Telegram Alert indicator */}
-                  {telegramBotToken && telegramChatId ? (
-                    <div className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border bg-emerald-500/10 text-emerald-400 border-emerald-500/25 select-none">
-                      {telegramPushing ? (
-                        <RefreshCw className="h-3.5 w-3.5 animate-spin text-emerald-400" />
-                      ) : (
-                        <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
-                      )}
-                      <span>{telegramPushing ? 'TG Sending...' : '✈️ TG Auto-Sent'}</span>
-                    </div>
-                  ) : (
-                    <div className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border bg-slate-900/40 text-slate-500 border-slate-800/80 select-none" title="Configure your Telegram Bot Token and Chat ID below to enable seamless auto-broadcasting of analyzed signals">
-                      <Send className="h-3.5 w-3.5 text-slate-600" />
-                      <span>✈️ TG Auto-Send Off</span>
-                    </div>
-                  )}
-
-                  {/* Log to Trade Journal indicator */}
+                  <div className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 border bg-cyan-500/10 text-cyan-200 border-cyan-500/25 select-none"><ShieldAlert className="h-3.5 w-3.5 text-cyan-300" /><span>Server-managed analysis</span></div>
                   <div className="px-3 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all border bg-amber-500/10 text-amber-500 border-amber-500/25 select-none">
                     <BookOpen className="h-3.5 w-3.5 text-amber-500" />
                     <span>📖 Journal Auto-Logged</span>
                   </div>
                 </div>
-
-                {/* Inline Telegram push feedback message */}
-                {telegramError && (
-                  <div className="text-[10px] text-rose-500 font-bold bg-rose-500/5 border border-rose-500/15 px-2.5 py-1.5 rounded-lg mt-1">
-                    ⚠️ {telegramError}
-                  </div>
-                )}
 
               </div>
             </div>

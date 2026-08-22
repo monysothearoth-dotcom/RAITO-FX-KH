@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Sparkles, MessageSquare, HelpCircle, ArrowRight, CornerDownRight, Cpu, User, RefreshCw } from 'lucide-react';
 import { MarketTicker } from '../types';
-import { getRuntimeAiWatchPayload } from '../lib/aiFallback';
 import { getKnowledgePromptContext, inferResearchDomain } from '../lib/marketKnowledge';
 
 interface ChatMessage {
@@ -21,7 +20,6 @@ interface AIAgentProps {
   selectedStrategy: string;
   onSwitchAsset: (symbol: string) => void;
   onSwitchStrategy: (strategy: string) => void;
-  customApiKey?: string;
 }
 
 const SUGGESTED_PROMPTS = [
@@ -36,22 +34,21 @@ export default function AIAgent({
   availableMarkets,
   selectedStrategy,
   onSwitchAsset,
-  onSwitchStrategy,
-  customApiKey
+  onSwitchStrategy
 }: AIAgentProps) {
   const [messages, setMessages] = useState<ChatMessage[]>(() => {
     try {
       const saved = localStorage.getItem('raito_ai_agent_messages');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed.map((message) => ({ ...message, text: typeof message?.text === 'string' ? message.text.replace(/NEXUS Core Institutional AI|NEXUS Core AI Agent|NEXUS Core/g, 'RAITO Agent') : message?.text }));
       }
     } catch {}
     return [
       {
         id: 'welcome',
         role: 'assistant',
-        text: `Hello! I am **NEXUS Core Institutional AI**, trained as an elite Algorithmic Smart Money Trader and Institutional Analyst.
+        text: `Hello! I am **RAITO Agent**, your market-research copilot for structured, evidence-led analysis.
 
 I analyze market structure through our **9-Concept Analytical Framework**:
 1. **SMC** (BOS/CHoCH & Inducements)
@@ -124,9 +121,7 @@ Try asking:
           strategy: selectedStrategy,
           currentPrice: activeTicker.price,
           timeframe: '1h',
-          customApiKey,
-          customPrompt: `${getKnowledgePromptContext(inferResearchDomain(activeTicker.symbol))} User question: ${textToSend}` ,
-          ...getRuntimeAiWatchPayload(customApiKey)
+          customPrompt: `${getKnowledgePromptContext(inferResearchDomain(activeTicker.symbol))} User question: ${textToSend}`
         })
       });
 
@@ -187,7 +182,7 @@ Try asking:
           </div>
           <div>
             <h2 className="text-xs font-black tracking-wider uppercase text-slate-300 flex items-center gap-1.5">
-              NEXUS Core AI Agent
+              RAITO Agent
             </h2>
             <p className="text-[10px] text-slate-500">Natural Language Trading Companion</p>
           </div>
@@ -270,7 +265,7 @@ Try asking:
               <RefreshCw className="h-3.5 w-3.5 animate-spin text-amber-500" />
             </div>
             <div className="bg-slate-950/40 border border-slate-850/60 p-3 rounded-2xl text-[10px] text-slate-400 font-mono tracking-wider animate-pulse uppercase">
-              Agent is compiling recommendations...
+              RAITO Agent is compiling the market context...
             </div>
           </div>
         )}
@@ -308,7 +303,7 @@ Try asking:
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask AI, e.g. 'SMC scan XAUUSD' or 'use Fibonacci'..."
+          placeholder="Ask RAITO Agent, e.g. 'SMC scan XAUUSD' or 'summarize macro risk'..."
           disabled={loading}
           className="flex-1 bg-slate-950 border border-slate-850 focus:border-amber-500/60 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-slate-500 outline-none transition-colors duration-200 disabled:opacity-50"
           id="ai-agent-chat-input"

@@ -27,6 +27,19 @@ interface MarketPulseProps {
   onRefreshTickers?: () => void;
 }
 
+const PULSE_MARKET_GROUPS = [
+  { category: 'forex', label: 'Major FX pairs', description: 'G10 currency pairs', accent: 'text-emerald-300' },
+  { category: 'crypto', label: 'Digital assets', description: 'Liquid crypto pairs', accent: 'text-cyan-300' },
+  { category: 'stocks', label: 'US equities', description: 'Large-cap market leaders', accent: 'text-violet-300' },
+  { category: 'oils', label: 'Energy & metals', description: 'Energy and precious metals', accent: 'text-amber-300' },
+] as const;
+
+export function groupPulsePairs(tickers: MarketTicker[]) {
+  return PULSE_MARKET_GROUPS
+    .map((group) => ({ ...group, tickers: tickers.filter((ticker) => ticker.category === group.category) }))
+    .filter((group) => group.tickers.length > 0);
+}
+
 export default function MarketPulse({
   tickers,
   selectedSymbol,
@@ -147,16 +160,16 @@ export default function MarketPulse({
     return [...categoryFiltered].sort((a, b) => {
       const rangeA = (a.high - a.low) / (a.price || 1);
       const rangeB = (b.high - b.low) / (b.price || 1);
-      return rangeB - rangeA;
+      return rangeB - rangeA || a.symbol.localeCompare(b.symbol);
     });
   }, [categoryFiltered]);
 
   const sortedGainers = useMemo(() => {
-    return [...categoryFiltered].sort((a, b) => b.changePercent - a.changePercent);
+    return [...categoryFiltered].sort((a, b) => b.changePercent - a.changePercent || a.symbol.localeCompare(b.symbol));
   }, [categoryFiltered]);
 
   const sortedLosers = useMemo(() => {
-    return [...categoryFiltered].sort((a, b) => a.changePercent - b.changePercent);
+    return [...categoryFiltered].sort((a, b) => a.changePercent - b.changePercent || a.symbol.localeCompare(b.symbol));
   }, [categoryFiltered]);
 
   const currentDisplayList = useMemo(() => {
@@ -164,6 +177,8 @@ export default function MarketPulse({
     if (pulseTab === 'losers') return sortedLosers;
     return sortedActive;
   }, [pulseTab, sortedActive, sortedGainers, sortedLosers]);
+
+  const pulseGroups = useMemo(() => groupPulsePairs(currentDisplayList), [currentDisplayList]);
 
   // Overall Market Breadth Statistics
   const marketBreadth = useMemo(() => {
@@ -317,7 +332,7 @@ export default function MarketPulse({
             { id: 'crypto', label: 'Crypto' },
             { id: 'forex', label: 'Forex' },
             { id: 'stocks', label: 'Stocks' },
-            { id: 'oils', label: 'Oils' }
+            { id: 'oils', label: 'Energy & Metals' }
           ].map((cat) => (
             <button
               key={cat.id}
@@ -334,94 +349,28 @@ export default function MarketPulse({
         </div>
       </div>
 
-      {/* 4. MARKET PULSE TICKERS LIST */}
-      <div className="flex flex-col gap-2 max-h-[460px] overflow-y-auto pr-1 custom-scrollbar">
+      {/* 4. GROUPED MARKET PAIR BOARD */}
+      <div className="rounded-2xl border border-slate-850 bg-slate-950/45 p-2.5">
+        <div className="flex flex-col gap-0.5 border-b border-slate-900 px-1.5 pb-2.5 sm:flex-row sm:items-end sm:justify-between">
+          <div><h4 className="text-[11px] font-black uppercase tracking-[0.12em] text-slate-200">Organized pair board</h4><p className="mt-0.5 text-[10px] text-slate-500">Pairs remain grouped by market so a ranked move never loses its context.</p></div>
+          <span className="text-[9px] font-mono uppercase tracking-wider text-slate-500">{currentDisplayList.length} instruments</span>
+        </div>
+      <div className="mt-2.5 flex max-h-[510px] flex-col gap-4 overflow-y-auto pr-1 custom-scrollbar">
         {currentDisplayList.length === 0 ? (
           <div className="py-10 text-center text-slate-500 text-xs font-mono">
             No active markets in selected category.
           </div>
         ) : (
-          currentDisplayList.map((ticker, index) => {
+          pulseGroups.map((group) => <section key={group.category} className="flex flex-col gap-1.5"><div className="flex items-center justify-between px-1"><div><span className={`text-[10px] font-black uppercase tracking-[0.12em] ${group.accent}`}>{group.label}</span><span className="ml-2 text-[9px] text-slate-600">{group.description}</span></div><span className="rounded-md bg-slate-900 px-1.5 py-0.5 text-[9px] font-mono text-slate-500">{group.tickers.length}</span></div><div className="divide-y divide-slate-900 overflow-hidden rounded-xl border border-slate-850 bg-slate-950/70">{group.tickers.map((ticker) => {
             const isSelected = selectedSymbol === ticker.symbol;
             const isPositive = ticker.changePercent >= 0;
             const flashState = tickerFlashes[ticker.symbol];
-
-            // Calculate current price position within 24h High/Low range
             const range = ticker.high - ticker.low || 1;
             const posPercent = Math.min(100, Math.max(0, ((ticker.price - ticker.low) / range) * 100));
-
-            return (
-              <div
-                key={ticker.symbol}
-                onClick={() => onSelectSymbol(ticker.symbol)}
-                className={`group flex flex-col p-3 rounded-2xl border transition-all duration-200 cursor-pointer relative overflow-hidden ${
-                  flashState === 'up' ? 'bg-emerald-950/40 border-emerald-500/50 scale-[1.01]' :
-                  flashState === 'down' ? 'bg-rose-950/40 border-rose-500/50 scale-[1.01]' :
-                  isSelected
-                    ? 'bg-slate-850 border-amber-500 shadow-lg shadow-amber-500/10'
-                    : 'bg-slate-950/60 hover:bg-slate-950 border-slate-850 hover:border-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between gap-3">
-                  {/* Rank & Symbol Info */}
-                  <div className="flex items-center gap-3">
-                    <span className={`w-6 h-6 rounded-lg text-[10px] font-mono font-black flex items-center justify-center ${
-                      index === 0 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40' :
-                      index === 1 ? 'bg-slate-700 text-slate-200' :
-                      index === 2 ? 'bg-amber-800/30 text-amber-300' :
-                      'bg-slate-900 text-slate-500'
-                    }`}>
-                      #{index + 1}
-                    </span>
-
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs font-extrabold text-white group-hover:text-amber-400 transition-colors font-mono">
-                          {(typeof ticker?.symbol === 'string' ? ticker.symbol : String(ticker?.symbol || '')).split(':').pop()}
-                        </span>
-                        <span className="text-[9px] uppercase px-1.5 py-0.5 rounded font-mono font-bold bg-slate-900 text-slate-400 border border-slate-850">
-                          {ticker.category}
-                        </span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 font-medium truncate block max-w-[130px] sm:max-w-[180px]">
-                        {ticker.name}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Price & Change */}
-                  <div className="text-right font-mono">
-                    <div className="text-xs font-black text-white flex items-center justify-end gap-1">
-                      <span>{formatVal(ticker.price, ticker.category)}</span>
-                      {flashState === 'up' && <ArrowUpRight className="h-3 w-3 text-emerald-400 animate-bounce" />}
-                      {flashState === 'down' && <ArrowDownRight className="h-3 w-3 text-rose-400 animate-bounce" />}
-                    </div>
-
-                    <div className={`text-[10px] font-extrabold flex items-center justify-end gap-0.5 ${
-                      isPositive ? 'text-emerald-400' : 'text-rose-400'
-                    }`}>
-                      {isPositive ? '+' : ''}{ticker.changePercent.toFixed(2)}%
-                    </div>
-                  </div>
-                </div>
-
-                {/* 24h High/Low Mini Visualizer Bar */}
-                <div className="mt-2.5 pt-2 border-t border-slate-900 flex items-center justify-between gap-2 text-[9px] font-mono text-slate-500">
-                  <span>L: {formatVal(ticker.low, ticker.category)}</span>
-
-                  <div className="flex-1 bg-slate-900 h-1.5 rounded-full overflow-hidden relative">
-                    <div
-                      className={`h-full rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`}
-                      style={{ width: `${posPercent}%` }}
-                    />
-                  </div>
-
-                  <span>H: {formatVal(ticker.high, ticker.category)}</span>
-                </div>
-              </div>
-            );
-          })
+            return <button key={ticker.symbol} onClick={() => onSelectSymbol(ticker.symbol)} className={`group grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-2.5 text-left transition-colors ${flashState === 'up' ? 'bg-emerald-950/40' : flashState === 'down' ? 'bg-rose-950/40' : isSelected ? 'bg-amber-500/10 ring-1 ring-inset ring-amber-500/60' : 'hover:bg-slate-900/80'}`}><div className="min-w-0"><div className="flex items-center gap-2"><span className="font-mono text-xs font-black text-white group-hover:text-amber-300">{ticker.symbol.split(':').pop()}</span><span className="truncate text-[10px] text-slate-500">{ticker.name}</span></div><div className="mt-1 flex items-center gap-2 text-[9px] font-mono text-slate-600"><span>{formatVal(ticker.low, ticker.category)}</span><div className="h-1 flex-1 overflow-hidden rounded-full bg-slate-900"><div className={`h-full rounded-full ${isPositive ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${posPercent}%` }} /></div><span>{formatVal(ticker.high, ticker.category)}</span></div></div><div className="text-right font-mono"><div className="flex items-center justify-end gap-1 text-xs font-black text-white"><span>{formatVal(ticker.price, ticker.category)}</span>{flashState === 'up' && <ArrowUpRight className="h-3 w-3 animate-bounce text-emerald-400" />}{flashState === 'down' && <ArrowDownRight className="h-3 w-3 animate-bounce text-rose-400" />}</div><div className={`mt-0.5 text-[10px] font-extrabold ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>{isPositive ? '+' : ''}{ticker.changePercent.toFixed(2)}%</div></div></button>;
+          })}</div></section>)
         )}
+      </div>
       </div>
     </div>
   );

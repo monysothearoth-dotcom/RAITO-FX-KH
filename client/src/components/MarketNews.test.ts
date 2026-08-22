@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { filterAndSortNews, newsEffectCardClass, newsEffectDisplayLabel, responsiveNewsBannerClassName, responsiveNewsMarqueeClassName, ResponsiveNewsBanner, TelegramAlertAction, TelegramHealthPanel, telegramAlertActionLabel, telegramHealthLabel, type NewsItem } from "./MarketNews";
+import { filterAndSortNews, getNewsDecisionContext, newsEffectCardClass, newsEffectDisplayLabel, responsiveNewsBannerClassName, responsiveNewsMarqueeClassName, ResponsiveNewsBanner, TelegramAlertAction, TelegramHealthPanel, telegramAlertActionLabel, telegramHealthLabel, type NewsItem } from "./MarketNews";
 
 const items: NewsItem[] = [
   { title: "AAPL rallies", source: "Yahoo", time: "2026-08-14T10:00:00Z", timestamp: Date.parse("2026-08-14T10:00:00Z"), summary: "Positive earnings", sentiment: "positive", impact: "high", relatedCurrency: "AAPL", category: "forex", assetTags: ["Forex", "USD"], effectAnalysis: { affectedInstruments: ["EURUSD"], direction: "BUY", expectedEffect: "Bullish", impact: "high", risk: "Risk" } },
@@ -46,6 +46,16 @@ describe("filterAndSortNews", () => {
   it("renders the pause action when the persisted Telegram schedule is active", () => {
     expect(telegramAlertActionLabel(true)).toBe("Pause Telegram alerts");
     expect(telegramAlertActionLabel(false)).toBe("Enable 60s Telegram alerts");
+  });
+
+  it("gives the user a concise decision context before dense calendar and news controls", () => {
+    const calendar = getNewsDecisionContext({ activeTab: "calendar", calendarCount: 4, newsCount: 7, alertsEnabled: true });
+    const breaking = getNewsDecisionContext({ activeTab: "news", calendarCount: 0, newsCount: 2, alertsEnabled: false });
+    expect(calendar.map((item) => item.value)).toContain("Review event risk first");
+    expect(calendar.map((item) => item.value)).toContain("4 events · 7 headlines");
+    expect(calendar.map((item) => item.value)).toContain("Delivery monitor active");
+    expect(breaking.map((item) => item.value)).toContain("Review headline impact");
+    expect(breaking.map((item) => item.value)).toContain("Alerts on standby");
   });
 
   it("renders the actual live-news banner wrapper with mobile wrapping classes", () => {

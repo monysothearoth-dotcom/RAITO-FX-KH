@@ -7,14 +7,12 @@ import {
   CheckCircle,
   TrendingUp,
   TrendingDown,
-  Send,
   AlertTriangle,
   Clock,
   ArrowRight,
   Award
 } from 'lucide-react';
 import { MarketTicker, SignalReport } from '../types';
-import { getRuntimeAiWatchPayload } from '../lib/aiFallback';
 import { getKnowledgePromptContext, inferResearchDomain } from '../lib/marketKnowledge';
 import { ConsensusMetadata } from './ConsensusMetadata';
 
@@ -22,7 +20,6 @@ interface AllInOneAiHubProps {
   activeTicker: MarketTicker;
   tickers: MarketTicker[];
   onSelectTicker: (ticker: MarketTicker) => void;
-  customApiKey?: string;
   onOpenJournalWithSignal?: (signal: any) => void;
 }
 
@@ -30,7 +27,6 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
   activeTicker,
   tickers,
   onSelectTicker,
-  customApiKey,
   onOpenJournalWithSignal
 }) => {
   const [activeMode, setActiveMode] = useState<'best_setup' | 'news_analyze' | 'all_in_one'>('all_in_one');
@@ -41,7 +37,6 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
 
   // Custom parameters
   const [timeframe, setTimeframe] = useState<string>('15m');
-  const [telegramStatus, setTelegramStatus] = useState<string>('');
 
   const rawSymbol = typeof activeTicker?.symbol === 'string' ? activeTicker.symbol : String(activeTicker?.symbol || '');
   const symbolCode = rawSymbol.split(':').pop() || rawSymbol;
@@ -50,7 +45,6 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
     setActiveMode(modeToRun);
     setLoading(true);
     setError(null);
-    setTelegramStatus('');
 
     let promptText = '';
     if (modeToRun === 'best_setup') {
@@ -75,9 +69,7 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
           price: activeTicker.price,
           change: activeTicker.change,
           timeframe,
-          customApiKey,
           customPrompt: `${getKnowledgePromptContext(inferResearchDomain(activeTicker.symbol))} ${promptText}`,
-          ...getRuntimeAiWatchPayload(customApiKey),
           strictAplusOnly: modeToRun === 'best_setup'
         })
       });
@@ -102,14 +94,6 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
     }
   };
 
-  const handlePushTelegramAlert = () => {
-    if (!report) return;
-    setTelegramStatus('Sending signal alert to Telegram channel...');
-    setTimeout(() => {
-      setTelegramStatus('✅ Signal successfully pushed to connected Telegram channel!');
-    }, 1200);
-  };
-
   return (
     <div className="space-y-4 w-full max-w-full min-w-0 overflow-x-hidden mx-auto pb-8 text-slate-100">
       
@@ -129,7 +113,7 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
               Unified AI Master Hub
             </h1>
             <p className="text-[11px] sm:text-xs text-slate-400 max-w-2xl leading-tight">
-              Combines live Binance/OANDA market APIs, Bloomberg/Reuters news feeds, and Gemini AI multi-model reasoning into one master trade signal.
+              Combines live market context, macro and news evidence, then uses the server-managed AI review chain to produce one inspectable analytical scenario.
             </p>
           </div>
 
@@ -144,7 +128,7 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
             </span>
             <span className="text-slate-700">|</span>
             <span className="flex items-center gap-1 text-amber-400 font-bold">
-              <Sparkles className="h-3 w-3" /> Gemini 3.6
+              <Sparkles className="h-3 w-3" /> Backend AI
             </span>
           </div>
         </div>
@@ -447,20 +431,8 @@ export const AllInOneAiHub: React.FC<AllInOneAiHubProps> = ({
               </button>
             )}
 
-            <button
-              onClick={handlePushTelegramAlert}
-              className="w-full sm:w-auto px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs rounded-lg transition-all border border-slate-700 flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <Send className="h-3.5 w-3.5 text-cyan-400" />
-              Push Signal to Telegram
-            </button>
+            <div className="w-full sm:w-auto rounded-lg border border-cyan-400/20 bg-cyan-400/5 px-3.5 py-2 text-center text-[10px] font-mono text-cyan-200">Telegram delivery is reserved for enabled Auto Signal monitoring.</div>
           </div>
-
-          {telegramStatus && (
-            <div className="text-xs font-mono text-emerald-400 bg-emerald-500/10 p-2 rounded-lg border border-emerald-500/30 text-center">
-              {telegramStatus}
-            </div>
-          )}
 
         </div>
       )}
