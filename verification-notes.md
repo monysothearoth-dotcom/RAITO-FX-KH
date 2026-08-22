@@ -13,3 +13,7 @@ The new Auto Signal Analyze route rendered successfully at desktop and mobile si
 The unauthenticated preview correctly shows the public signal ledger while withholding owner-only monitoring controls. Sign-in is required for the owner to enable the recurring monitor or tune its scoring thresholds.
 
 After the indicator-backed scoring and delivery-health update, the final desktop and mobile previews continued to render cleanly. The compact mobile layout preserves the Auto Signal Analyze navigation entry, monitor status, metric cards, ledger, owner boundary, and risk notice in a single readable column.
+
+## Navigation Reorder Verification
+
+The desktop preview shows Auto Signal Analyze immediately after Markets & Chart, with the following feature tabs continuing in the requested analysis-first sequence. The mobile preview preserves the horizontally scrollable header without clipping the first visible tabs; the reordered group remains accessible through the existing touch-scroll navigation. Regression coverage confirms the ordered sequence is Auto Signal Analyze, Signal Analyze, All-in-One AI Engine, AI Agent, and Economic Calendar & News, followed by the remaining functions.

@@ -60,6 +60,8 @@ export const responsiveHeaderNavClassName = 'flex items-center gap-1.5 overflow-
 
 export type DashboardTab = 'markets' | 'auto_signals' | 'pulse' | 'signals' | 'all_in_one' | 'agent' | 'news' | 'research' | 'list' | 'alerts' | 'journal' | 'analytics' | 'account';
 
+export const dashboardNavigationOrder: DashboardTab[] = ['markets', 'auto_signals', 'signals', 'all_in_one', 'agent', 'news', 'pulse', 'research', 'alerts', 'journal', 'analytics', 'list'];
+
 export function ResponsiveHeaderNav({ children }: { children: React.ReactNode }) {
   return <nav className={responsiveHeaderNavClassName}>{children}</nav>;
 }
@@ -673,24 +675,13 @@ export default function App() {
                 Auto Signal Analyze
               </button>
               <button
-                onClick={() => setActiveTab('pulse')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
-                  activeTab === 'pulse'
-                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 font-extrabold shadow-sm'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-                id="tab-market-pulse"
-              >
-                <Flame className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
-                Market Pulse
-              </button>
-              <button
                 onClick={() => setActiveTab('signals')}
                 className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
                   activeTab === 'signals'
                     ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20'
                     : 'text-slate-400 hover:text-white'
                 }`}
+                id="tab-signal-analyze"
               >
                 <Compass className="h-3.5 w-3.5" />
                 Signal Analyze
@@ -741,6 +732,18 @@ export default function App() {
               >
                 <Calendar className="h-3.5 w-3.5 text-amber-400" />
                 Economic Calendar &amp; News
+              </button>
+              <button
+                onClick={() => setActiveTab('pulse')}
+                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'pulse'
+                    ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20 font-extrabold shadow-sm'
+                    : 'text-slate-400 hover:text-white'
+                }`}
+                id="tab-market-pulse"
+              >
+                <Flame className="h-3.5 w-3.5 text-amber-400 animate-pulse" />
+                Market Pulse
               </button>
               <button
                 onClick={() => setActiveTab('alerts')}
@@ -947,16 +950,6 @@ export default function App() {
                 {/* Persistent Auto Signal Analyze Tab */}
                 {activeTab === 'auto_signals' && <AutoSignalAnalyze />}
 
-                {/* 2. Real-Time Market Pulse Tab */}
-                {activeTab === 'pulse' && (
-                  <MarketPulse
-                    tickers={tickers}
-                    selectedSymbol={selectedSymbol}
-                    onSelectSymbol={handleSwitchAsset}
-                    onRefreshTickers={fetchLivePrices}
-                  />
-                )}
-
                 {/* 2. Algorithmic Signals Tab */}
                 {activeTab === 'signals' && (
                   <>
@@ -1003,6 +996,16 @@ export default function App() {
                 {/* 4. Hot News Intel Tab */}
                 {activeTab === 'news' && (
                   <MarketNews symbol={selectedSymbol} symbols={tickers.map((ticker) => ticker.symbol)} customApiKey={customApiKey} />
+                )}
+
+                {/* Remaining workspace: Market Pulse */}
+                {activeTab === 'pulse' && (
+                  <MarketPulse
+                    tickers={tickers}
+                    selectedSymbol={selectedSymbol}
+                    onSelectSymbol={handleSwitchAsset}
+                    onRefreshTickers={fetchLivePrices}
+                  />
                 )}
 
                 {/* 5. Research Library, macro, crypto, and paper validation workspace */}

@@ -21,15 +21,21 @@
 - [x] Superseded by the user’s backend-only requirement: do not add a browser credential-entry interface or return secret values to the website.
 - [x] Add tests and validation for protected credential configuration, then document the required credential labels and setup flow.
 - [x] Configure Telegram bot token, Telegram chat ID, and four API credentials as backend-only project secrets with no website or database disclosure.
-- [x] Configure `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `OPENROUTER_API_KEY` as backend-only Auto Signal Analyze credentials; direct xAI credentials are not used.
-- [x] Use separate `AUTO_SIGNAL_TELEGRAM_BOT_TOKEN` and `AUTO_SIGNAL_TELEGRAM_CHAT_ID` backend secrets for Auto Signal Analyze, leaving news-alert Telegram credentials unchanged.
-- [x] Configure `OPENROUTER_API_KEY` for the `x-ai/grok-4.6` backend fallback and remove direct xAI validation from Auto Signal Analyze.
+- [x] Configure GEMINI_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, and OPENROUTER_API_KEY as backend-only Auto Signal Analyze credentials; direct xAI credentials are not used.
+- [x] Use separate AUTO_SIGNAL_TELEGRAM_BOT_TOKEN and AUTO_SIGNAL_TELEGRAM_CHAT_ID backend secrets for Auto Signal Analyze, leaving news-alert Telegram credentials unchanged.
+- [x] Configure OPENROUTER_API_KEY for the x-ai/grok-4.6 backend fallback and remove direct xAI validation from Auto Signal Analyze.
 - [x] Reconfirm the documented backend-only secret labels and OpenRouter Grok 4.6 routing before the final checkpoint.
 - [x] Inspect why News Alert delivery is not translating into Khmer and identify the affected setting, eligibility rule, or translation fallback.
 - [x] Repair Khmer translation for News Alert messages without affecting dedicated Auto Signal Analyze delivery.
 - [x] Add focused regression coverage and validate Khmer News Alert delivery behavior.
-- [x] Investigate and repair the existing `users.displayName` database-migration mismatch reported by the live OAuth callback, without conflating it with News Alert translation.
+- [x] Investigate and repair the existing users.displayName database-migration mismatch reported by the live OAuth callback, without conflating it with News Alert translation.
 - [x] Inspect the live Auto Signal and News Alert schedules, settings, delivery queues, and Khmer translation diagnostics for the reported missing delivery.
 - [ ] Repair any enabled-state, scheduler, source, translation, or Telegram delivery fault affecting Auto Signal or Khmer News Alert delivery.
 - [ ] Validate the repaired live-delivery prerequisites and document the exact owner activation and verification steps.
 - [ ] Publish the current server routes, then enable News Alert as the owner so its persistent schedule can be created and tested.
+- [x] Reorder navigation so Auto Signal Analyze is followed by Signal Analyze, All in One AI Engine, AI Agent, and Economic Calendar & News, with all other functions after that group.
+- [x] Run navigation regression checks and verify the reordered feature group on desktop and mobile layouts.
+- [ ] Save the navigation update and document the new feature order.
+
+REALITY CHECK:
+The Auto Signal and Khmer News Alert delivery items remain blocked on the user publishing the current server routes. The live Auto Signal heartbeat currently receives HTTP 404 until that publish step is completed.

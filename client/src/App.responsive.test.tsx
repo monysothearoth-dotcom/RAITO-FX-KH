@@ -4,12 +4,17 @@ import { createElement } from "react";
 import { render, screen, waitFor } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { AccountPreferenceRuntime, AuthStatus, getAccountPreferredTab, getInitialDashboardTab, resolveAccountTheme, ResponsiveHeaderNav, responsiveHeaderClassName, responsiveHeaderNavClassName, type DashboardTab } from "./App";
+import { AccountPreferenceRuntime, AuthStatus, dashboardNavigationOrder, getAccountPreferredTab, getInitialDashboardTab, resolveAccountTheme, ResponsiveHeaderNav, responsiveHeaderClassName, responsiveHeaderNavClassName, type DashboardTab } from "./App";
 
 describe("responsive dashboard view routing", () => {
   it("opens every supported dashboard view from its query parameter", () => {
     const views = ["markets", "pulse", "signals", "all_in_one", "agent", "news", "research", "list", "alerts", "journal", "analytics", "account"];
     for (const view of views) expect(getInitialDashboardTab(view)).toBe(view);
+  });
+
+  it("keeps the requested analysis tools adjacent after Auto Signal Analyze", () => {
+    expect(dashboardNavigationOrder.slice(1, 6)).toEqual(["auto_signals", "signals", "all_in_one", "agent", "news"]);
+    expect(dashboardNavigationOrder.slice(6)).toEqual(["pulse", "research", "alerts", "journal", "analytics", "list"]);
   });
 
   it("renders the actual navigation wrapper with responsive overflow classes", () => {
