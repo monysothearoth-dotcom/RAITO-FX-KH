@@ -56,6 +56,14 @@ EODHD is compatible with the application as a future server-only provider. Its R
 
 If Raito-FX Pro is made available commercially or is operated by a regulated individual, institution, or business, confirm the applicable EODHD commercial license with EODHD before using its data. The provider states that its pricing-page packages are for personal use and describes a separate commercial-use process. [4]
 
+### Published Delivery Verification
+
+Following publication of the current server routes, the existing enabled Auto Signal Heartbeat (`ei52wM65VpLxqCyMYGRy9t`) was checked again. Its next production callback returned HTTP 200, updated the persistent Auto Signal `lastRunAt` value, and recorded no error. No Auto Signal delivery was generated during that observed pass because no candidate passed the configured deterministic threshold; this is an expected skip, not a delivery failure.
+
+The existing owner News Alert Heartbeat (`SZj7mpiCyaNfe5M52FJawT`) was refreshed against the published callback path `/api/scheduled/telegram-news`; no replacement task was required. Its subsequent production callback returned HTTP 200. The owner settings then recorded one successful run, no error, no active source outage, twelve deduplicated deliveries, and a delivery timestamp aligned with that run. Khmer translation remains server-managed through the configured fallback chain.
+
+For future deployments that change a scheduled callback handler, publish first, then inspect the newest run for each enabled schedule. A current HTTP 200 supersedes historical pre-publication HTTP 404 records. The owner can view schedule status and execution history in the project management dashboard; if a previously enabled callback remains stale after a publish, refresh that existing schedule’s path and recheck the following run before creating any replacement.
+
 #### References
 
 [1]: https://github.com/EodHistoricalData/eodhd-openapi/blob/main/components/securitySchemes.yaml "EODHD OpenAPI authentication scheme"

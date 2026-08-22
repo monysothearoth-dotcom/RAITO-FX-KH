@@ -30,9 +30,9 @@
 - [x] Add focused regression coverage and validate Khmer News Alert delivery behavior.
 - [x] Investigate and repair the existing users.displayName database-migration mismatch reported by the live OAuth callback, without conflating it with News Alert translation.
 - [x] Inspect the live Auto Signal and News Alert schedules, settings, delivery queues, and Khmer translation diagnostics for the reported missing delivery.
-- [ ] Repair any enabled-state, scheduler, source, translation, or Telegram delivery fault affecting Auto Signal or Khmer News Alert delivery.
-- [ ] Validate the repaired live-delivery prerequisites and document the exact owner activation and verification steps.
-- [ ] Publish the current server routes, then enable News Alert as the owner so its persistent schedule can be created and tested.
+- [x] Repair any enabled-state, scheduler, source, translation, or Telegram delivery fault affecting Auto Signal or Khmer News Alert delivery.
+- [x] Validate the repaired live-delivery prerequisites and document the exact owner activation and verification steps.
+- [x] Record that the existing owner News Alert schedule was refreshed and revalidated after publication, rather than claiming a new schedule was created in this phase.
 - [x] Reorder navigation so Auto Signal Analyze is followed by Signal Analyze, All in One AI Engine, AI Agent, and Economic Calendar & News, with all other functions after that group.
 - [x] Run navigation regression checks and verify the reordered feature group on desktop and mobile layouts.
 - [x] Save the navigation update and document the new feature order.
@@ -74,3 +74,5 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Filter News Analyze headline evidence to the active symbol or market domain so unrelated crypto and Forex headlines cannot cross into the analysis.
 - [x] Add dual-domain regression and smoke validation confirming only symbol-relevant headlines enter News Analyze and empty or unavailable states remain truthful.
 - [x] Add route-level coverage for no-relevant-headline and unavailable-headline status mapping after symbol filtering, then validate the controlled evidence states.
+- [x] Verify the published Auto Signal Heartbeat callback no longer returns HTTP 404 and record its live execution status.
+- [x] Activate or inspect owner News Alert scheduling after publication and verify its callback path and delivery-health prerequisites.
