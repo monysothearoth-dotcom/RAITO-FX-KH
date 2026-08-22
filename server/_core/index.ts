@@ -21,6 +21,7 @@ import { analyzeNewsEffect, buildPreReleaseSignals, fetchPublicEconomicCalendar,
 import { ENV } from "./env";
 import { invokeLLM } from "./llm";
 import { sdk } from "./sdk";
+import { fetchAlphaVantageStockQuote } from "../alphaVantage";
 
 type LivePrice = { price: number; change: number; changePercent: number; high: number; low: number };
 
@@ -85,18 +86,26 @@ async function fetchLiveMarketPrices(): Promise<Record<string, LivePrice>> {
       const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`, {
         headers: { "User-Agent": "MarketLiveCharts/1.0" },
       });
-      if (!response.ok) return;
-      const data = await response.json() as any;
-      const result = data?.chart?.result?.[0];
-      const meta = result?.meta;
-      const price = safeNumber(meta?.regularMarketPrice);
-      const previous = safeNumber(meta?.chartPreviousClose || meta?.previousClose, price);
-      if (price > 0) {
-        const change = price - previous;
-        prices[symbol] = { price, change, changePercent: previous ? (change / previous) * 100 : 0, high: price, low: price };
+      if (response.ok) {
+        const data = await response.json() as any;
+        const result = data?.chart?.result?.[0];
+        const meta = result?.meta;
+        const price = safeNumber(meta?.regularMarketPrice);
+        const previous = safeNumber(meta?.chartPreviousClose || meta?.previousClose, price);
+        if (price > 0) {
+          const change = price - previous;
+          prices[symbol] = { price, change, changePercent: previous ? (change / previous) * 100 : 0, high: price, low: price };
+          return;
+        }
       }
     } catch (error) {
       console.warn(`Yahoo Finance feed unavailable for ${ticker}`);
+    }
+    try {
+      const quote = await fetchAlphaVantageStockQuote(ticker, ENV.alphaVantageApiKey);
+      if (quote) prices[symbol] = quote;
+    } catch {
+      console.warn(`Alpha Vantage fallback unavailable for ${ticker}`);
     }
   }));
 
@@ -487,7 +496,7 @@ async function startServer() {
 
   app.get("/api/live-prices", async (_req, res) => {
     const prices = await fetchLiveMarketPrices();
-    res.json({ prices, source: "Binance · open.er-api · Yahoo Finance · gold-api.com", timestamp: Date.now() });
+    res.json({ prices, source: "Binance · open.er-api · Yahoo Finance · Alpha Vantage fallback · gold-api.com", timestamp: Date.now() });
   });
 
   app.get("/api/macro-indicators", async (_req, res) => {

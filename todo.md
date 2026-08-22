@@ -39,7 +39,11 @@
 - [x] Remove the global currency selector from the header and remove related unused header dependencies.
 - [x] Prevent the remaining header market-status indicators from colliding with the reordered navigation at desktop widths.
 - [x] Validate the simplified header on desktop and mobile layouts.
-- [ ] Save the header simplification and document the removed control.
+- [x] Save the header simplification and document the removed control.
 
 REALITY CHECK:
 The Auto Signal and Khmer News Alert delivery items remain blocked on the user publishing the current server routes. The live Auto Signal heartbeat currently receives HTTP 404 until that publish step is completed.
+
+- [x] Sync the development preview to the latest shared-project version.
+- [x] Review the Alpha Vantage integration and add the provided API key as a backend-only project secret.
+- [x] Validate Alpha Vantage server-side market-data access and confirm the synchronized preview is healthy.
