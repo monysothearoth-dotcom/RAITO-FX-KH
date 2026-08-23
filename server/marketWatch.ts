@@ -21,11 +21,12 @@ export function filterHeadlineEvidenceForSymbol<T extends { category?: string; r
   });
 }
 
-export function buildHeadlineEvidenceForSymbol<T extends { category: string; relatedCurrency: string; title: string; source: string; timestamp: number }>(symbol: string, source: { items: T[]; sourceFailures: string[] }) {
-  const headlines = filterHeadlineEvidenceForSymbol(symbol, source.items).slice(0, 8).map((item) => ({ title: item.title, source: item.source, timestamp: item.timestamp, category: item.category, relatedCurrency: item.relatedCurrency }));
+export function buildHeadlineEvidenceForSymbol<T extends { category: string; relatedCurrency?: string; title: string; source?: string; timestamp: number }>(symbol: string, source: { items: T[]; sourceFailures?: string[] }) {
+  const sourceFailures = source.sourceFailures || [];
+  const headlines = filterHeadlineEvidenceForSymbol(symbol, source.items).slice(0, 8).map((item) => ({ title: item.title, source: item.source || "Unattributed upstream source", timestamp: item.timestamp, category: item.category, relatedCurrency: item.relatedCurrency }));
   return {
-    status: headlines.length ? "available" as const : source.sourceFailures.length && !source.items.length ? "unavailable" as const : "no_relevant_headlines" as const,
-    sourceFailures: source.sourceFailures,
+    status: headlines.length ? "available" as const : sourceFailures.length && !source.items.length ? "unavailable" as const : "no_relevant_headlines" as const,
+    sourceFailures,
     headlines,
   };
 }

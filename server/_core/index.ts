@@ -742,4 +742,4 @@ Return strict JSON with recommendation (BUY or SELL), confidence (0-100), entryP
   });
 }
 
-if (process.env.NODE_ENV !== "test") startServer().catch(console.error);
+if (process.env.NODE_ENV !== "test" && !process.env.VITEST) startServer().catch(console.error);

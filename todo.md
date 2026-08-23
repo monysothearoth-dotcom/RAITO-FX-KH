@@ -76,3 +76,7 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Add route-level coverage for no-relevant-headline and unavailable-headline status mapping after symbol filtering, then validate the controlled evidence states.
 - [x] Verify the published Auto Signal Heartbeat callback no longer returns HTTP 404 and record its live execution status.
 - [x] Activate or inspect owner News Alert scheduling after publication and verify its callback path and delivery-health prerequisites.
+- [x] Diagnose why Auto Signal Analyze has not produced a Telegram notification by inspecting monitor eligibility, persisted candidates, queue state, and dedicated Telegram delivery results.
+- [x] Confirm that no Auto Signal Telegram delivery fault was present in the observed run; no repair was required because no candidate met the preserved deterministic thresholds.
+- [x] Add explicit Auto Signal monitor diagnostics for skipped candidates and validate a controlled no-delivery result caused by preserved eligibility thresholds rather than an unobserved fault.
+- [x] Add an end-to-end Auto Signal monitor regression asserting threshold rejection returns `created: 0`, `delivered: 0`, and the matching deterministic diagnostic.

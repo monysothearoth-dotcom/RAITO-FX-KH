@@ -38,6 +38,8 @@ Auto Signal Analyze is an owner-controlled feature. After publishing the current
 
 The monitor is intentionally disabled by default. Enable it only after publishing, then verify the owner dashboard reports an active monitor and inspect the delivery-health panel after the first successful run. Signals are analytical scenarios, not trade execution or a guarantee of return.
 
+When Auto Signal Analyze does not send a Telegram message, first distinguish a selective eligibility skip from a delivery fault. A successful monitor response with `created: 0` and `delivered: 0` means no record reached the Telegram queue. The monitor returns per-symbol diagnostics for live-price availability, historical sample coverage, SMA/EMA directional alignment, event-risk suppression, and confidence, confluence, or risk/reward threshold checks. Only an eligible candidate that is persisted can generate a Telegram delivery; the monitor does not send speculative messages merely to confirm that it is running.
+
 ### Dedicated Auto Signal Backend Credentials
 
 Auto Signal Analyze now uses a separate backend-only Telegram pair, `AUTO_SIGNAL_TELEGRAM_BOT_TOKEN` and `AUTO_SIGNAL_TELEGRAM_CHAT_ID`. These do not replace or share the Telegram values used by the existing news-alert feature. Its AI review chain is server-only and tries Gemini, OpenAI, Claude, then `x-ai/grok-4.6` through OpenRouter. The required project secrets are `GEMINI_API_KEY`, `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `OPENROUTER_API_KEY`.

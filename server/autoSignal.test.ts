@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGoldPreNewsCandidates, evaluateHighConfidenceSetup, evaluateSignalOutcome, runAutoSignalMonitor, type AutoSignalCandidate, type AutoSignalPrice, type PersistedAutoSignal } from "./autoSignal";
+import { buildGoldPreNewsCandidates, diagnoseHighConfidenceSetup, evaluateHighConfidenceSetup, evaluateSignalOutcome, runAutoSignalMonitor, type AutoSignalCandidate, type AutoSignalPrice, type PersistedAutoSignal } from "./autoSignal";
 
 const thresholds = { minConfidence: 78, minScore: 82, minRiskReward: 1.8 };
 const qualifiedPrice: AutoSignalPrice = { price: 109, change: 1, changePercent: 1, high: 110, low: 100 };
@@ -16,6 +16,34 @@ describe("Auto Signal Analyze engine", () => {
     expect(qualified).toMatchObject({ source: "TECHNICAL", symbol: "XAUUSD", direction: "BUY", status: "OPEN" });
     expect(qualified?.intelligenceScore).toBeGreaterThanOrEqual(82);
     expect(suppressed).toBeNull();
+  });
+
+  it("explains a no-delivery technical skip using the preserved deterministic thresholds", () => {
+    const diagnostic = diagnoseHighConfidenceSetup({ symbol: "XAUUSD", price: qualifiedPrice, historicalCloses: bullishHistory, thresholds: { ...thresholds, minScore: 99 } });
+    expect(diagnostic).toMatchObject({ symbol: "XAUUSD", eligible: false });
+    expect(diagnostic.reason).toMatch(/confluence_.*_below_99/);
+  });
+
+  it("returns a threshold diagnostic and no Telegram delivery when the monitor rejects all candidates", async () => {
+    const telegramMessages: string[] = [];
+    const result = await runAutoSignalMonitor({
+      settings: { userId: 7, isEnabled: 1, ...thresholds, minScore: 99 },
+      fetchPrices: async () => ({ "OANDA:XAUUSD": qualifiedPrice }),
+      fetchHistorical: async () => bullishHistory,
+      fetchCalendar: async () => [],
+      listOpen: async () => [],
+      create: async (_userId, candidate) => ({ signal: persisted(candidate), created: true }),
+      resolve: async () => undefined,
+      touch: async () => undefined,
+      listDeliveryQueue: async () => [],
+      send: async (text) => { telegramMessages.push(text); },
+      recordDelivery: async () => undefined,
+      markRun: async () => undefined,
+      now: Date.UTC(2026, 7, 21, 12),
+    });
+    expect(result).toMatchObject({ ok: true, created: 0, delivered: 0 });
+    expect(result.diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({ symbol: "XAUUSD", eligible: false, reason: expect.stringMatching(/confluence_.*_below_99/) })]));
+    expect(telegramMessages).toEqual([]);
   });
 
   it("resolves an open signal when either its take-profit or stop-loss is reached", () => {
@@ -62,6 +90,7 @@ describe("Auto Signal Analyze engine", () => {
     expect(telegramMessages).toHaveLength(1);
     expect(telegramMessages[0]).toContain(websiteSignals[0].symbol);
     expect(recordedDeliveries).toEqual(["1:SIGNAL"]);
+    expect(result.diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({ symbol: "XAUUSD", eligible: true, reason: "eligible" })]));
   });
 
   it("suppresses publication when the backend AI reviewer rejects a deterministic candidate", async () => {
