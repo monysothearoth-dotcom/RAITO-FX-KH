@@ -1,5 +1,6 @@
 import { GEMINI_GENERATE_URL } from "./aiConfig";
-import { invokeLLM } from "./_core/llm";
+import { callAnthropicMessagesWithKey } from "./anthropic";
+import { ENV } from "./_core/env";
 import type { TelegramNewsItem } from "./telegramNews";
 
 const KHMER_CHARACTERS = /[\u1780-\u17FF]/;
@@ -38,15 +39,15 @@ function translationInstruction(items: TelegramNewsItem[]) {
 }
 
 async function translateWithClaude(items: TelegramNewsItem[]) {
-  const response = await invokeLLM({
-    model: "claude-haiku-4-5",
-    maxTokens: 2200,
-    messages: [
+  const response = await callAnthropicMessagesWithKey(
+    ENV.anthropicApiKey,
+    [
       { role: "system", content: "You are a precise Khmer financial-news translator. Follow the requested JSON shape exactly and do not use Markdown fences." },
       { role: "user", content: translationInstruction(items) },
     ],
-  });
-  return applyTranslations(items, parseTranslationPayload(response.choices?.[0]?.message?.content));
+    { maxTokens: 2200 },
+  );
+  return applyTranslations(items, parseTranslationPayload(response));
 }
 
 async function translateWithGemini(items: TelegramNewsItem[]) {

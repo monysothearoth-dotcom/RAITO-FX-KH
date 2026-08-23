@@ -20,6 +20,7 @@ import { translateTelegramNewsItemsToKhmer } from "../telegramTranslation";
 import { analyzeNewsEffect, buildPreReleaseSignals, buildVerifiedEventEvidence, fetchPublicEconomicCalendar, filterPreReleaseSignals, formatPreReleaseSignalMessage, highImpactSignalFingerprint, selectUndeliveredPreReleaseSignals } from "../highImpactNews";
 import { ENV } from "./env";
 import { invokeLLM } from "./llm";
+import { callAnthropicMessagesWithKey } from "../anthropic";
 import { sdk } from "./sdk";
 import { fetchAlphaVantageStockQuote } from "../alphaVantage";
 import { fetchCoinGeckoCryptoPrices } from "../coinGecko";
@@ -183,7 +184,7 @@ const AI_ENDPOINTS: Record<string, { url: string; model: string; kind: "openai" 
   openrouter: { url: "https://openrouter.ai/api/v1/chat/completions", model: "google/gemini-2.5-flash", kind: "openai" },
   grok: { url: "https://openrouter.ai/api/v1/chat/completions", model: "x-ai/grok-4.6", kind: "openai" },
   groq: { url: "https://api.groq.com/openai/v1/chat/completions", model: "llama-3.3-70b-versatile", kind: "openai" },
-  anthropic: { url: "https://api.anthropic.com/v1/messages", model: "claude-3-5-sonnet-20241022", kind: "anthropic" },
+  anthropic: { url: "https://api.anthropic.com/v1/messages", model: "claude-haiku-4-5-20251001", kind: "anthropic" },
   openai: { url: "https://api.openai.com/v1/chat/completions", model: "gpt-4o-mini", kind: "openai" },
   deepseek: { url: "https://api.deepseek.com/v1/chat/completions", model: "deepseek-chat", kind: "openai" },
   nvidia: { url: "https://integrate.api.nvidia.com/v1/chat/completions", model: "meta/llama-3.1-70b-instruct", kind: "openai" },
@@ -199,7 +200,7 @@ async function callPlatformAI(messages: Array<{ role: string; content: string }>
   return Array.isArray(content) ? content.map((part: any) => part.text || "").join("") : String(content || "");
 }
 
-async function callUserSuppliedAI(provider: string, apiKey: string, messages: Array<{ role: string; content: string }>) {
+export async function callUserSuppliedAI(provider: string, apiKey: string, messages: Array<{ role: string; content: string }>) {
   const config = AI_ENDPOINTS[provider.toLowerCase()];
   if (!config) throw new Error("Unsupported AI provider");
   if (!apiKey?.trim()) throw new Error("A provider API key is required at runtime");
@@ -212,15 +213,15 @@ async function callUserSuppliedAI(provider: string, apiKey: string, messages: Ar
     if (!response.ok) throw new Error(data?.error?.message || "Gemini request failed");
     return data?.candidates?.[0]?.content?.parts?.map((part: any) => part.text).join("") || "";
   }
+  if (config.kind === "anthropic") return callAnthropicMessagesWithKey(apiKey, messages as Array<{ role: "system" | "user" | "assistant"; content: string }>, { model: config.model, maxTokens: 2000 });
   const headers: Record<string, string> = { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
-  if (config.kind === "anthropic") { headers["x-api-key"] = apiKey; headers["anthropic-version"] = "2023-06-01"; delete headers.Authorization; }
   const response = await fetch(config.url, {
     method: "POST", headers,
-    body: JSON.stringify(config.kind === "anthropic" ? { model: config.model, max_tokens: 2000, system: messages.find(message => message.role === "system")?.content, messages: messages.filter(message => message.role !== "system") } : { model: config.model, messages, temperature: 0.2, max_tokens: 2000 }),
+    body: JSON.stringify({ model: config.model, messages, temperature: 0.2, max_tokens: 2000 }),
   });
   const data = await response.json() as any;
   if (!response.ok) throw new Error(data?.error?.message || data?.error || "AI request failed");
-  return config.kind === "anthropic" ? data?.content?.[0]?.text || "" : data?.choices?.[0]?.message?.content || "";
+  return data?.choices?.[0]?.message?.content || "";
 }
 
 async function reviewAutoSignalWithBackendProviders(candidate: { symbol: string; direction: string; entryPrice: number; stopLoss: number; takeProfit: number; confidence: number; technicalScore: number; strategyScore: number; fundamentalScore: number; intelligenceScore: number; rationale: string }) {
@@ -683,10 +684,10 @@ async function startServer() {
         ...suppliedMessages,
         ...(prompt || message ? [{ role: "user", content: String(prompt || message) }] : [{ role: "user", content: `Analyze ${selectedSymbol || "the selected market"}.` }]),
       ];
-      const primaryKey = apiKey || customApiKey || (inferredProvider === "gemini" ? process.env.USER_GEMINI_API_KEY || "" : "");
+      const primaryKey = apiKey || customApiKey || (inferredProvider === "gemini" ? process.env.USER_GEMINI_API_KEY || "" : inferredProvider === "anthropic" ? ENV.anthropicApiKey : "");
       const result = await callWithProviderFallback(inferredProvider, primaryKey, [...fallbackProviders, "platform"], { ...apiKeys, platform: "internal" }, normalizedMessages, (provider, key, messages) => provider === "platform" ? callPlatformAI(messages) : callUserSuppliedAI(provider, key, messages));
       const signal = normalizeSignalPayload(parseStructuredAiJson(result.text), safeNumber(chartContext?.live?.price, safeNumber(chartContext?.historical.last)), result.text);
-      res.json({ reply: result.text, text: result.text, signal, chartContext: chartContext ? { symbol: chartContext.symbol, yahooSymbol: chartContext.yahooSymbol, historical: chartContext.historical } : null, provider: result.provider, attemptedProviders: result.attemptedProviders, fallbackUsed: result.provider !== inferredProvider, apiKeySource: inferredProvider === "gemini" && !apiKey && !customApiKey ? "server-secret" : "user-supplied-runtime-key" });
+      res.json({ reply: result.text, text: result.text, signal, chartContext: chartContext ? { symbol: chartContext.symbol, yahooSymbol: chartContext.yahooSymbol, historical: chartContext.historical } : null, provider: result.provider, attemptedProviders: result.attemptedProviders, fallbackUsed: result.provider !== inferredProvider, apiKeySource: ["gemini", "anthropic"].includes(inferredProvider) && !apiKey && !customApiKey ? "server-secret" : "user-supplied-runtime-key" });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "AI request failed" });
     }
@@ -702,13 +703,13 @@ async function startServer() {
 LIVE CHART CONTEXT (do not invent values): ${JSON.stringify(chartContext)}
 
 Return strict JSON with recommendation (BUY or SELL), confidence (0-100), entryPrice, stopLoss, takeProfit, rationale, indicators, and warning. Base the direction on live price versus SMA20, SMA50, EMA20, recent change, and volatility. If context is incomplete or conflicting, choose the more defensible BUY or SELL direction and clearly state the data limitation in warning. Never guarantee profit.`;
-      const primaryKey = apiKey || (inferredProvider === "gemini" ? process.env.USER_GEMINI_API_KEY || "" : "");
+      const primaryKey = apiKey || (inferredProvider === "gemini" ? process.env.USER_GEMINI_API_KEY || "" : inferredProvider === "anthropic" ? ENV.anthropicApiKey : "");
       const result = await callWithProviderFallback(inferredProvider, primaryKey, [...fallbackProviders, "platform"], { ...apiKeys, platform: "internal" }, [{ role: "system", content: "You are a careful market analysis assistant. Never claim certainty or guarantee returns. Return valid JSON only." }, { role: "user", content: prompt }], (provider, key, messages) => provider === "platform" ? callPlatformAI(messages) : callUserSuppliedAI(provider, key, messages));
       const raw = result.text;
       let report: any;
       report = parseStructuredAiJson(raw) || { recommendation: "BUY", confidence: 0, entryPrice: currentPrice, stopLoss: currentPrice, takeProfit: currentPrice, rationale: raw, indicators: [], warning: "The model did not return structured JSON; review the analysis carefully." };
       const signal = normalizeSignalPayload(report, safeNumber(chartContext.live?.price, safeNumber(currentPrice)), raw);
-      res.json({ ...report, ...signal, symbol, strategy, modelUsed: result.provider, attemptedProviders: result.attemptedProviders, fallbackUsed: result.provider !== inferredProvider, isLiveAI: true, apiKeySource: inferredProvider === "gemini" && !apiKey ? "server-secret" : "user-supplied-runtime-key", chartContext: { symbol: chartContext.symbol, yahooSymbol: chartContext.yahooSymbol, historical: chartContext.historical } });
+      res.json({ ...report, ...signal, symbol, strategy, modelUsed: result.provider, attemptedProviders: result.attemptedProviders, fallbackUsed: result.provider !== inferredProvider, isLiveAI: true, apiKeySource: ["gemini", "anthropic"].includes(inferredProvider) && !apiKey ? "server-secret" : "user-supplied-runtime-key", chartContext: { symbol: chartContext.symbol, yahooSymbol: chartContext.yahooSymbol, historical: chartContext.historical } });
     } catch (error) {
       res.status(400).json({ error: error instanceof Error ? error.message : "Strategy analysis failed" });
     }

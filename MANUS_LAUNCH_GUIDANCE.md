@@ -46,6 +46,12 @@ Auto Signal Analyze now uses a separate backend-only Telegram pair, `AUTO_SIGNAL
 
 The automatic monitor retains the deterministic technical, strategy, fundamental, and risk/reward gate as its first safeguard. AI review is a secondary consistency check; if all configured providers are temporarily unavailable, it records that fact in the saved rationale and continues to apply the deterministic threshold rather than presenting an AI result as certain.
 
+### Anthropic Claude Credential Status
+
+`ANTHROPIC_API_KEY` is configured as a server-only credential and successfully authenticates against the Anthropic models endpoint. It is now used by the backend-only Claude path for RAITO analysis selections and the primary Khmer translation attempt; no browser API-key field, client persistence, or database storage is used.
+
+The current Anthropic account cannot yet run completion requests because the provider reports insufficient API credit. Until credit is available on that Anthropic API account, RAITO analysis safely continues through its configured provider fallback and Khmer delivery falls back to the existing server-side Gemini translation path. The credential itself does not need to be replaced unless the Anthropic account or key is changed.
+
 ### Khmer News Alert Translation
 
 News Alert now translates headlines through a Claude Haiku Khmer-first flow that returns a validated JSON mapping per headline. If that provider is temporarily unavailable or returns no usable Khmer text, the delivery path securely retries with the server-side Gemini key. English is retained only when neither translation provider returns valid Khmer, and the scheduled-delivery logs now state that fallback condition instead of failing silently.

@@ -80,3 +80,9 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Confirm that no Auto Signal Telegram delivery fault was present in the observed run; no repair was required because no candidate met the preserved deterministic thresholds.
 - [x] Add explicit Auto Signal monitor diagnostics for skipped candidates and validate a controlled no-delivery result caused by preserved eligibility thresholds rather than an unobserved fault.
 - [x] Add an end-to-end Auto Signal monitor regression asserting threshold rejection returns `created: 0`, `delivered: 0`, and the matching deterministic diagnostic.
+- [x] Confirm whether the supplied Claude code token is a valid Anthropic API key suitable for server-side application requests.
+- [x] Store a valid Claude API credential as the backend-only `ANTHROPIC_API_KEY` without adding browser controls or persistence.
+- [ ] Validate successful Anthropic completion responses for the existing analysis and Khmer translation primary paths after the provider API account has available credit.
+- [x] Replace the incorrectly entered Claude credential with a valid backend-only Anthropic API key and re-run the provider validation.
+- [ ] Validate the configured Anthropic credential through the existing server-side RAITO analysis path and Khmer translation fallback without exposing the key.
+- [x] Record that the Anthropic credential authenticates but the provider account cannot currently run completions, then verify safe fallback behavior until provider credits are available.
