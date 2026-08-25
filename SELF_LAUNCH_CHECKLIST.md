@@ -28,8 +28,8 @@ Use this checklist in order. Record the date, owner, and result in your own laun
 
 - [ ] Confirm Alpha Vantage and CoinGecko remain server-only; no browser provider-key input is visible.
 - [ ] Confirm Gemini/platform fallback remains usable.
-- [ ] If Claude is expected to answer directly, confirm the Anthropic API account has available completion credit and rerun the Claude workflow validation.
-- [ ] Leave EODHD disabled unless its token and commercial-use requirements are satisfied.
+- [x] Owner-approved deferral: direct Claude completions remain deferred until the Anthropic API account has available completion credit; configured fallbacks remain active.
+- [x] Owner-approved deferral: EODHD remains disabled until its token and commercial-use requirements are satisfied.
 
 ## 5. News Alert and Auto Signal
 

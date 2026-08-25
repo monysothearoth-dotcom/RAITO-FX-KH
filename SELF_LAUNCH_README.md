@@ -43,6 +43,10 @@ The managed path is the lower-risk way to launch because the current 60-second A
 
 Start with `SELF_LAUNCH_CHECKLIST.md`. Do not enable Telegram schedules before you have verified sign-in, live market data, owner controls, and the intended Telegram destinations. Keep every key in a deployment secret manager; none of these files contains a secret value.
 
+## Owner-Approved Deferred Prerequisites
+
+The owner has explicitly approved the following items as **deferred**, not launch blockers. Anthropic direct completions remain deferred until the provider API account has available credit; the installed backend fallback paths remain active. EODHD integration remains deferred until an `EODHD_API_TOKEN` and the appropriate license are available. Keep the current Alpha Vantage and CoinGecko backend-only provider configuration unchanged until those conditions are met.
+
 ## Support Boundaries
 
 Use the relevant provider’s own console for API-key, billing, or service-account issues. For managed platform hosting or account-level availability support, use [Manus Help](https://help.manus.im). This package gives you the technical launch steps but does not expose or reproduce any existing secret.

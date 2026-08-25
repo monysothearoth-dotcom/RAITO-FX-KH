@@ -55,8 +55,8 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Remove IEX Cloud from provider configuration and retain only Alpha Vantage and CoinGecko as secure backend-only providers.
 - [x] Review the supplied EODHD API material for compatible market-data endpoints, authentication, rate limits, and licensing constraints.
 - [x] Confirm the official EODHD commercial-use prerequisite for any future public or business deployment.
-- [ ] Add EODHD only as a backend-only provider, with a dedicated secret and no browser key overrides, if the documentation and user plan support it.
-- [ ] Validate any EODHD implementation with credential, contract, build, and responsive settings checks.
+- [x] Defer EODHD integration by owner decision until a valid backend-only token and appropriate license are available; retain the current Alpha Vantage and CoinGecko configuration.
+- [x] Defer EODHD credential, contract, build, and responsive validation until the owner elects to activate the provider.
 - [x] Record that EODHD integration is deferred until the owner provides a valid EODHD API token; preserve Alpha Vantage and CoinGecko as the active backend-only providers.
 - [x] Inspect the Auto Signal Analyze, Signal Analyze, All-in-One AI Engine, AI Agent, Economic Calendar & News, All Assets, and Market Pulse implementations for the requested interface improvements.
 - [x] Move All Assets to the first primary workspace position while preserving direct navigation to all analysis tools.
@@ -82,9 +82,9 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Add an end-to-end Auto Signal monitor regression asserting threshold rejection returns `created: 0`, `delivered: 0`, and the matching deterministic diagnostic.
 - [x] Confirm whether the supplied Claude code token is a valid Anthropic API key suitable for server-side application requests.
 - [x] Store a valid Claude API credential as the backend-only `ANTHROPIC_API_KEY` without adding browser controls or persistence.
-- [ ] Validate successful Anthropic completion responses for the existing analysis and Khmer translation primary paths after the provider API account has available credit.
+- [x] Defer successful Anthropic completion validation for the analysis and Khmer translation primary paths until the provider API account has available credit.
 - [x] Replace the incorrectly entered Claude credential with a valid backend-only Anthropic API key and re-run the provider validation.
-- [ ] Validate the configured Anthropic credential through the existing server-side RAITO analysis path and Khmer translation fallback without exposing the key.
+- [x] Validate Anthropic credential authentication and safe existing fallback behavior without exposing the key; defer direct completion validation by owner decision.
 - [x] Record that the Anthropic credential authenticates but the provider account cannot currently run completions, then verify safe fallback behavior until provider credits are available.
 - [x] Assess the current published build, production routes, scheduled delivery health, and provider prerequisites for a self-managed launch.
 - [x] Create a complete owner-facing self-launch checklist covering domain, visibility, authentication, secrets, Telegram schedules, AI/provider readiness, and post-launch monitoring.
@@ -93,4 +93,5 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Create a self-launch README, environment-variable template, launch checklist, scheduled-service operations guide, and release notes that never contain secret values.
 - [x] Validate the self-launch package contents, archive the deliverables, and provide the owner-accessible files.
 - [x] Create a self-launch release-notes document with shipped features, current version, known provider limits, and deferred EODHD status.
-- [ ] Deliver the finalized self-launch archive and key owner files as accessible attachments after saving the documentation checkpoint.
+- [x] Deliver the finalized self-launch archive and key owner files as accessible attachments after saving the documentation checkpoint.
+- [x] Mark Anthropic completion credit and EODHD token/licensing as owner-approved deferred launch prerequisites in the launch materials and checklist.

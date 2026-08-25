@@ -35,6 +35,8 @@ The published Auto Signal and News Alert callbacks previously returned HTTP 200 
 | Telegram messages | Selective by design. | Expect Auto Signal delivery only after a qualifying signal is persisted. |
 | External deployment | Requires independent infrastructure. | Supply your own database, OAuth configuration, secrets, and a protected scheduler. Do not use GitHub Pages for this server application. |
 
+Both the Anthropic direct-completion check and EODHD integration have been explicitly accepted by the owner as **deferred launch prerequisites**. They do not change the active provider configuration or the safe fallback behavior documented in this package.
+
 ## Owner Handoff Files
 
 Start with `SELF_LAUNCH_README.md`, complete `SELF_LAUNCH_CHECKLIST.md`, configure secrets through `SELF_LAUNCH_ENVIRONMENT.md`, and use `SELF_LAUNCH_OPERATIONS.md` for day-to-day monitoring. The archive excludes `.env` files, build output, dependency folders, logs, and storage artifacts.
