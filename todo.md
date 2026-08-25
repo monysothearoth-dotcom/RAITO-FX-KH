@@ -86,3 +86,11 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Replace the incorrectly entered Claude credential with a valid backend-only Anthropic API key and re-run the provider validation.
 - [ ] Validate the configured Anthropic credential through the existing server-side RAITO analysis path and Khmer translation fallback without exposing the key.
 - [x] Record that the Anthropic credential authenticates but the provider account cannot currently run completions, then verify safe fallback behavior until provider credits are available.
+- [x] Assess the current published build, production routes, scheduled delivery health, and provider prerequisites for a self-managed launch.
+- [x] Create a complete owner-facing self-launch checklist covering domain, visibility, authentication, secrets, Telegram schedules, AI/provider readiness, and post-launch monitoring.
+- [x] Verify the launch materials against the current deployment and save the final self-launch package.
+- [x] Inventory existing launch documents and current production-operating guidance for a consolidated owner package.
+- [x] Create a self-launch README, environment-variable template, launch checklist, scheduled-service operations guide, and release notes that never contain secret values.
+- [x] Validate the self-launch package contents, archive the deliverables, and provide the owner-accessible files.
+- [x] Create a self-launch release-notes document with shipped features, current version, known provider limits, and deferred EODHD status.
+- [ ] Deliver the finalized self-launch archive and key owner files as accessible attachments after saving the documentation checkpoint.
