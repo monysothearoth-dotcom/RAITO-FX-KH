@@ -99,4 +99,4 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Create a complete independent-launch archive with a source manifest and handoff instructions.
 - [x] Validate the independent-launch archive contents and deliver it as the complete owner handoff.
 - [x] Exclude managed project metadata containing deployment credentials from the independent handoff archive while preserving all portable source and launch files.
-- [ ] Deliver the validated complete independent-launch archive as the owner handoff attachment.
+- [x] Deliver the validated complete independent-launch archive as the owner handoff attachment.
