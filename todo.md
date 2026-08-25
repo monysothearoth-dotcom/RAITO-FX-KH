@@ -95,3 +95,8 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Create a self-launch release-notes document with shipped features, current version, known provider limits, and deferred EODHD status.
 - [x] Deliver the finalized self-launch archive and key owner files as accessible attachments after saving the documentation checkpoint.
 - [x] Mark Anthropic completion credit and EODHD token/licensing as owner-approved deferred launch prerequisites in the launch materials and checklist.
+- [x] Audit the full Raito-FX Pro source tree and confirm the independent-launch handoff includes application code, migrations, tests, documentation, and configuration templates while excluding secrets and generated artifacts.
+- [x] Create a complete independent-launch archive with a source manifest and handoff instructions.
+- [x] Validate the independent-launch archive contents and deliver it as the complete owner handoff.
+- [x] Exclude managed project metadata containing deployment credentials from the independent handoff archive while preserving all portable source and launch files.
+- [ ] Deliver the validated complete independent-launch archive as the owner handoff attachment.
