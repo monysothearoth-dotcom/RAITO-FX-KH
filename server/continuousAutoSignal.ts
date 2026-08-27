@@ -54,6 +54,7 @@ export async function runEnabledAutoSignalMonitors(input: {
 }) {
   const settings = (await input.listSettings()).filter((setting) => Boolean(setting.isEnabled));
   if (!settings.length) return { monitored: 0, failures: 0 };
+  await Promise.all(settings.map((setting) => input.markTick?.(setting)));
   const prices = await input.fetchPrices();
   let failures = 0;
   for (const setting of settings) {
@@ -62,8 +63,6 @@ export async function runEnabledAutoSignalMonitors(input: {
     } catch (error) {
       failures += 1;
       input.onMonitorError?.(setting, error);
-    } finally {
-      await input.markTick?.(setting);
     }
   }
   return { monitored: settings.length, failures };
