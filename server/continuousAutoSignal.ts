@@ -21,13 +21,14 @@ export function createSingleFlightPoller(input: { intervalMs: number; run: () =>
   const tick = async () => {
     if (stopped || running) return;
     running = true;
+    const startedAt = Date.now();
     try {
       await input.run();
     } catch (error) {
       input.onError?.(error);
     } finally {
       running = false;
-      schedule(input.intervalMs);
+      schedule(Math.max(0, input.intervalMs - (Date.now() - startedAt)));
     }
   };
 

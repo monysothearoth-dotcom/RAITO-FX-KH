@@ -393,10 +393,10 @@ export async function markAutoSignalRun(userId: number, error?: string | null) {
 export async function markAutoSignalContinuousTick(userId: number) {
   const db = await getDb();
   if (!db) return;
-  const current = (await db.select({ continuousLastTickAt: autoSignalSettings.continuousLastTickAt }).from(autoSignalSettings).where(eq(autoSignalSettings.userId, userId)).limit(1))[0];
-  const now = new Date();
-  const previous = current?.continuousLastTickAt?.getTime();
-  await db.update(autoSignalSettings).set({ continuousLastTickAt: now, continuousLastIntervalMs: previous ? now.getTime() - previous : null }).where(eq(autoSignalSettings.userId, userId));
+  await db.update(autoSignalSettings).set({
+    continuousLastIntervalMs: sql`CASE WHEN ${autoSignalSettings.continuousLastTickAt} IS NULL THEN NULL ELSE TIMESTAMPDIFF(MICROSECOND, ${autoSignalSettings.continuousLastTickAt}, NOW(6)) DIV 1000 END`,
+    continuousLastTickAt: sql`NOW(6)`,
+  }).where(eq(autoSignalSettings.userId, userId));
 }
 
 export async function listAutoSignals(userId?: number) {
