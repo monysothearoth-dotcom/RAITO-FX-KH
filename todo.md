@@ -108,3 +108,4 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Add automated coverage and validate the updated Telegram workflows, schedule behavior, server build, and responsive monitoring UI.
 - [ ] Activate sub-minute Auto Signal monitoring on the approved always-on host without creating duplicate delivery loops.
 - [ ] Validate continuous monitoring cadence, Telegram dispatch safety, and owner-visible delivery health after publication.
+- [ ] Add a separate continuous-worker heartbeat timestamp so the owner can distinguish 15-second monitoring from the 60-second fallback schedule.

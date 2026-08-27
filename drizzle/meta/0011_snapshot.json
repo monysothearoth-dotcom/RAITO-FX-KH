@@ -1,0 +1,1494 @@
+{
+  "version": "5",
+  "dialect": "mysql",
+  "id": "ca26785a-b632-4437-b343-41ed9e7c94df",
+  "prevId": "23a5c952-e39e-464c-8a74-31416dfa605d",
+  "tables": {
+    "auto_signal_deliveries": {
+      "name": "auto_signal_deliveries",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "signalId": {
+          "name": "signalId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "deliveryType": {
+          "name": "deliveryType",
+          "type": "enum('SIGNAL','OUTCOME')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('PENDING','SENDING','SENT','FAILED','UNKNOWN')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'SENT'"
+        },
+        "attemptCount": {
+          "name": "attemptCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "attemptedAt": {
+          "name": "attemptedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastError": {
+          "name": "lastError",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deliveredAt": {
+          "name": "deliveredAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "auto_signal_delivery_unique": {
+          "name": "auto_signal_delivery_unique",
+          "columns": [
+            "signalId",
+            "deliveryType"
+          ],
+          "isUnique": true
+        },
+        "auto_signal_delivery_user_index": {
+          "name": "auto_signal_delivery_user_index",
+          "columns": [
+            "userId",
+            "deliveredAt"
+          ],
+          "isUnique": false
+        },
+        "auto_signal_delivery_status_index": {
+          "name": "auto_signal_delivery_status_index",
+          "columns": [
+            "userId",
+            "status"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "auto_signal_deliveries_id": {
+          "name": "auto_signal_deliveries_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "auto_signal_settings": {
+      "name": "auto_signal_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "isEnabled": {
+          "name": "isEnabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "minConfidence": {
+          "name": "minConfidence",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 78
+        },
+        "minScore": {
+          "name": "minScore",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 82
+        },
+        "minRiskReward": {
+          "name": "minRiskReward",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1.8
+        },
+        "scheduleCronTaskUid": {
+          "name": "scheduleCronTaskUid",
+          "type": "varchar(65)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastRunAt": {
+          "name": "lastRunAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "continuousLastTickAt": {
+          "name": "continuousLastTickAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastError": {
+          "name": "lastError",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "auto_signal_settings_user_unique": {
+          "name": "auto_signal_settings_user_unique",
+          "columns": [
+            "userId"
+          ],
+          "isUnique": true
+        },
+        "auto_signal_settings_task_uid_index": {
+          "name": "auto_signal_settings_task_uid_index",
+          "columns": [
+            "scheduleCronTaskUid"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "auto_signal_settings_id": {
+          "name": "auto_signal_settings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "auto_signals": {
+      "name": "auto_signals",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "varchar(191)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "activeKey": {
+          "name": "activeKey",
+          "type": "varchar(96)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "enum('TECHNICAL','PRE_NEWS')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "direction": {
+          "name": "direction",
+          "type": "enum('BUY','SELL')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('OPEN','TP_HIT','SL_HIT','EXPIRED','CANCELLED')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'OPEN'"
+        },
+        "entryPrice": {
+          "name": "entryPrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stopLoss": {
+          "name": "stopLoss",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "takeProfit": {
+          "name": "takeProfit",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "confidence": {
+          "name": "confidence",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "technicalScore": {
+          "name": "technicalScore",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "strategyScore": {
+          "name": "strategyScore",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "fundamentalScore": {
+          "name": "fundamentalScore",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "intelligenceScore": {
+          "name": "intelligenceScore",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "riskReward": {
+          "name": "riskReward",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "rationale": {
+          "name": "rationale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "warning": {
+          "name": "warning",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "newsEvent": {
+          "name": "newsEvent",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "newsScheduledAt": {
+          "name": "newsScheduledAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outcomePrice": {
+          "name": "outcomePrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outcomeDetails": {
+          "name": "outcomeDetails",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "openedAt": {
+          "name": "openedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "resolvedAt": {
+          "name": "resolvedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastEvaluatedAt": {
+          "name": "lastEvaluatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "auto_signal_user_fingerprint_unique": {
+          "name": "auto_signal_user_fingerprint_unique",
+          "columns": [
+            "userId",
+            "fingerprint"
+          ],
+          "isUnique": true
+        },
+        "auto_signal_active_key_unique": {
+          "name": "auto_signal_active_key_unique",
+          "columns": [
+            "activeKey"
+          ],
+          "isUnique": true
+        },
+        "auto_signal_user_status_index": {
+          "name": "auto_signal_user_status_index",
+          "columns": [
+            "userId",
+            "status"
+          ],
+          "isUnique": false
+        },
+        "auto_signal_user_opened_index": {
+          "name": "auto_signal_user_opened_index",
+          "columns": [
+            "userId",
+            "openedAt"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "auto_signals_id": {
+          "name": "auto_signals_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "news_effect_tracking": {
+      "name": "news_effect_tracking",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "varchar(191)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "varchar(1024)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "predictedEffect": {
+          "name": "predictedEffect",
+          "type": "enum('BUY','SELL','NORMAL')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "baselinePrice": {
+          "name": "baselinePrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "baselineAt": {
+          "name": "baselineAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "evaluationWindowMinutes": {
+          "name": "evaluationWindowMinutes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 60
+        },
+        "currentPrice": {
+          "name": "currentPrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "movementPercent": {
+          "name": "movementPercent",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "actualEffect": {
+          "name": "actualEffect",
+          "type": "enum('BUY','SELL','NORMAL')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outcome": {
+          "name": "outcome",
+          "type": "enum('PENDING','CORRECT','INCORRECT','NEUTRAL','UNAVAILABLE')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'PENDING'"
+        },
+        "evaluatedAt": {
+          "name": "evaluatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "news_effect_tracking_user_fingerprint_unique": {
+          "name": "news_effect_tracking_user_fingerprint_unique",
+          "columns": [
+            "userId",
+            "fingerprint"
+          ],
+          "isUnique": true
+        },
+        "news_effect_tracking_user_status_index": {
+          "name": "news_effect_tracking_user_status_index",
+          "columns": [
+            "userId",
+            "outcome"
+          ],
+          "isUnique": false
+        },
+        "news_effect_tracking_user_created_index": {
+          "name": "news_effect_tracking_user_created_index",
+          "columns": [
+            "userId",
+            "createdAt"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "news_effect_tracking_id": {
+          "name": "news_effect_tracking_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "paper_trades": {
+      "name": "paper_trades",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "direction": {
+          "name": "direction",
+          "type": "enum('BUY','SELL')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "strategy": {
+          "name": "strategy",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "provider": {
+          "name": "provider",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "setupScore": {
+          "name": "setupScore",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "entryPrice": {
+          "name": "entryPrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "stopLoss": {
+          "name": "stopLoss",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "takeProfit": {
+          "name": "takeProfit",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "size": {
+          "name": "size",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "status": {
+          "name": "status",
+          "type": "enum('OPEN','TARGET_HIT','STOPPED_OUT','CLOSED','CANCELLED')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'OPEN'"
+        },
+        "closePrice": {
+          "name": "closePrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pnlPercent": {
+          "name": "pnlPercent",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pnlAmount": {
+          "name": "pnlAmount",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "rationale": {
+          "name": "rationale",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "openedAt": {
+          "name": "openedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "closedAt": {
+          "name": "closedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "paper_trades_id": {
+          "name": "paper_trades_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "portfolio_holdings": {
+      "name": "portfolio_holdings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "averagePrice": {
+          "name": "averagePrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "portfolio_holdings_id": {
+          "name": "portfolio_holdings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "price_alerts": {
+      "name": "price_alerts",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "targetPrice": {
+          "name": "targetPrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "condition": {
+          "name": "condition",
+          "type": "enum('ABOVE','BELOW')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "isTriggered": {
+          "name": "isTriggered",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "price_alerts_id": {
+          "name": "price_alerts_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "telegram_news_deliveries": {
+      "name": "telegram_news_deliveries",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "fingerprint": {
+          "name": "fingerprint",
+          "type": "varchar(191)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "title": {
+          "name": "title",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "url": {
+          "name": "url",
+          "type": "varchar(1024)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "category": {
+          "name": "category",
+          "type": "enum('forex','crypto')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "deliveredAt": {
+          "name": "deliveredAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "telegram_news_delivery_user_fingerprint_unique": {
+          "name": "telegram_news_delivery_user_fingerprint_unique",
+          "columns": [
+            "userId",
+            "fingerprint"
+          ],
+          "isUnique": true
+        },
+        "telegram_news_delivery_user_delivered_index": {
+          "name": "telegram_news_delivery_user_delivered_index",
+          "columns": [
+            "userId",
+            "deliveredAt"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "telegram_news_deliveries_id": {
+          "name": "telegram_news_deliveries_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "telegram_news_settings": {
+      "name": "telegram_news_settings",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "isEnabled": {
+          "name": "isEnabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "highImpactAlertsEnabled": {
+          "name": "highImpactAlertsEnabled",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 1
+        },
+        "highImpactLeadMinutes": {
+          "name": "highImpactLeadMinutes",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 15
+        },
+        "highImpactInstruments": {
+          "name": "highImpactInstruments",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'XAUUSD,EURUSD,GBPUSD,USDJPY,AUDUSD,USDCAD,USDCHF,NZDUSD'"
+        },
+        "scheduleCronTaskUid": {
+          "name": "scheduleCronTaskUid",
+          "type": "varchar(65)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastRunAt": {
+          "name": "lastRunAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastSuccessAt": {
+          "name": "lastSuccessAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "lastError": {
+          "name": "lastError",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "runCount": {
+          "name": "runCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "successfulRunCount": {
+          "name": "successfulRunCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "failedRunCount": {
+          "name": "failedRunCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "consecutiveFailureCount": {
+          "name": "consecutiveFailureCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "totalSent": {
+          "name": "totalSent",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "totalSkipped": {
+          "name": "totalSkipped",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "sourceFailures": {
+          "name": "sourceFailures",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "outageActive": {
+          "name": "outageActive",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "pendingNotificationType": {
+          "name": "pendingNotificationType",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "pendingNotificationContent": {
+          "name": "pendingNotificationContent",
+          "type": "varchar(1024)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "notificationAttemptCount": {
+          "name": "notificationAttemptCount",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        },
+        "lastNotificationError": {
+          "name": "lastNotificationError",
+          "type": "varchar(512)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        }
+      },
+      "indexes": {
+        "telegram_news_settings_user_unique": {
+          "name": "telegram_news_settings_user_unique",
+          "columns": [
+            "userId"
+          ],
+          "isUnique": true
+        },
+        "telegram_news_settings_task_uid_index": {
+          "name": "telegram_news_settings_task_uid_index",
+          "columns": [
+            "scheduleCronTaskUid"
+          ],
+          "isUnique": false
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "telegram_news_settings_id": {
+          "name": "telegram_news_settings_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "trade_journal_entries": {
+      "name": "trade_journal_entries",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "userId": {
+          "name": "userId",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "symbol": {
+          "name": "symbol",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "direction": {
+          "name": "direction",
+          "type": "enum('BUY','SELL')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "strategy": {
+          "name": "strategy",
+          "type": "varchar(128)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "entryPrice": {
+          "name": "entryPrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "exitPrice": {
+          "name": "exitPrice",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "size": {
+          "name": "size",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "pnl": {
+          "name": "pnl",
+          "type": "double",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "notes": {
+          "name": "notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "trade_journal_entries_id": {
+          "name": "trade_journal_entries_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraint": {}
+    },
+    "users": {
+      "name": "users",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "int",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "openId": {
+          "name": "openId",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "displayName": {
+          "name": "displayName",
+          "type": "varchar(160)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(320)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "timezone": {
+          "name": "timezone",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'UTC'"
+        },
+        "defaultView": {
+          "name": "defaultView",
+          "type": "varchar(32)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'all_in_one'"
+        },
+        "theme": {
+          "name": "theme",
+          "type": "enum('dark','light','system')",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false,
+          "default": "'dark'"
+        },
+        "loginMethod": {
+          "name": "loginMethod",
+          "type": "varchar(64)",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "role": {
+          "name": "role",
+          "type": "enum('user','admin')",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'user'"
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "onUpdate": true,
+          "default": "(now())"
+        },
+        "lastSignedIn": {
+          "name": "lastSignedIn",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "(now())"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "users_id": {
+          "name": "users_id",
+          "columns": [
+            "id"
+          ]
+        }
+      },
+      "uniqueConstraints": {
+        "users_openId_unique": {
+          "name": "users_openId_unique",
+          "columns": [
+            "openId"
+          ]
+        }
+      },
+      "checkConstraint": {}
+    }
+  },
+  "views": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  },
+  "internal": {
+    "tables": {},
+    "indexes": {}
+  }
+}

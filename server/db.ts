@@ -390,6 +390,12 @@ export async function markAutoSignalRun(userId: number, error?: string | null) {
   await db.update(autoSignalSettings).set({ lastRunAt: new Date(), lastError: error?.slice(0, 512) ?? null }).where(eq(autoSignalSettings.userId, userId));
 }
 
+export async function markAutoSignalContinuousTick(userId: number) {
+  const db = await getDb();
+  if (!db) return;
+  await db.update(autoSignalSettings).set({ continuousLastTickAt: new Date() }).where(eq(autoSignalSettings.userId, userId));
+}
+
 export async function listAutoSignals(userId?: number) {
   const db = await getDb();
   if (!db) return [];

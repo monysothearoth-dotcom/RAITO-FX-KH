@@ -13,7 +13,7 @@ import { callWithProviderFallback, parseStructuredAiJson } from "../aiFallback";
 import { GEMINI_GENERATE_URL, GEMINI_MODEL } from "../aiConfig";
 import { normalizeSignalPayload } from "../signal";
 import { buildHeadlineEvidenceForSymbol, buildMarketWatchConsensus, buildMarketWatchValidationPrompt, inferWatchDomain, type WatchCandidate } from "../marketWatch";
-import { claimAutoSignalDelivery, createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listEnabledAutoSignalSettings, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalDeliveryFailed, markAutoSignalDeliverySent, markAutoSignalRun, markTelegramNewsRun, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
+import { claimAutoSignalDelivery, createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listEnabledAutoSignalSettings, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalContinuousTick, markAutoSignalDeliveryFailed, markAutoSignalDeliverySent, markAutoSignalRun, markTelegramNewsRun, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
 import { fetchAutoSignalHistoricalCloses, runAutoSignalMonitor } from "../autoSignal";
 import { createSingleFlightPoller, runEnabledAutoSignalMonitors } from "../continuousAutoSignal";
 import { runScheduledTelegramDelivery, sendTelegramNewsMessage, telegramNewsFingerprint, type TelegramNewsFetchResult, type TelegramNewsItem } from "../telegramNews";
@@ -780,7 +780,7 @@ Return strict JSON with recommendation (BUY or SELL), confidence (0-100), entryP
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
-    if (process.env.NODE_ENV === "production") {
+    if (process.env.NODE_ENV !== "development" && !process.env.VITEST) {
       const worker = createSingleFlightPoller({
         intervalMs: 15_000,
         run: async () => {
@@ -788,6 +788,7 @@ Return strict JSON with recommendation (BUY or SELL), confidence (0-100), entryP
             listSettings: listEnabledAutoSignalSettings,
             fetchPrices: fetchAutoSignalMarketPrices,
             runMonitor: (settings, fetchPrices) => runConfiguredAutoSignalMonitor(settings, fetchPrices),
+            markTick: (settings) => markAutoSignalContinuousTick(settings.userId),
             onMonitorError: (settings, error) => console.error(`[AutoSignal] continuous monitor failed for user ${settings.userId}`, error instanceof Error ? error.message : error),
           });
           if (result.failures) console.warn(`[AutoSignal] continuous monitor cycle completed with ${result.failures} failure(s)`);

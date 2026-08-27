@@ -49,6 +49,7 @@ export async function runEnabledAutoSignalMonitors(input: {
   listSettings: () => Promise<AutoSignalRunnerSettings[]>;
   fetchPrices: () => Promise<Record<string, AutoSignalPrice>>;
   runMonitor: (settings: AutoSignalRunnerSettings, fetchPrices: () => Promise<Record<string, AutoSignalPrice>>) => Promise<unknown>;
+  markTick?: (settings: AutoSignalRunnerSettings) => Promise<void>;
   onMonitorError?: (settings: AutoSignalRunnerSettings, error: unknown) => void;
 }) {
   const settings = (await input.listSettings()).filter((setting) => Boolean(setting.isEnabled));
@@ -61,6 +62,8 @@ export async function runEnabledAutoSignalMonitors(input: {
     } catch (error) {
       failures += 1;
       input.onMonitorError?.(setting, error);
+    } finally {
+      await input.markTick?.(setting);
     }
   }
   return { monitored: settings.length, failures };

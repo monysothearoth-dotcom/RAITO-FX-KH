@@ -5,6 +5,7 @@ describe("always-on Auto Signal worker", () => {
   it("uses one market snapshot for each enabled owner monitor cycle", async () => {
     const fetchPrices = vi.fn(async () => ({ "OANDA:XAUUSD": { price: 4500, change: 0, changePercent: 0, high: 4500, low: 4500 } }));
     const runMonitor = vi.fn(async () => undefined);
+    const markTick = vi.fn(async () => undefined);
     const result = await runEnabledAutoSignalMonitors({
       listSettings: async () => [
         { userId: 1, isEnabled: 1, minConfidence: 78, minScore: 82, minRiskReward: 1.8 },
@@ -12,10 +13,12 @@ describe("always-on Auto Signal worker", () => {
       ],
       fetchPrices,
       runMonitor,
+      markTick,
     });
     expect(result).toEqual({ monitored: 1, failures: 0 });
     expect(fetchPrices).toHaveBeenCalledTimes(1);
     expect(runMonitor).toHaveBeenCalledTimes(1);
+    expect(markTick).toHaveBeenCalledTimes(1);
     expect(runMonitor.mock.calls[0][0]).toMatchObject({ userId: 1 });
   });
 

@@ -64,6 +64,7 @@ export default function AutoSignalAnalyze() {
           </div>
           <div className="flex flex-col gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/75 p-3 text-[11px] shadow-inner xl:min-w-72">
             <div className="flex items-center justify-between gap-4"><span className="font-mono uppercase text-slate-500">Monitor</span><span className={settings?.isEnabled ? "font-black text-emerald-300" : "font-black text-slate-400"}>{settings?.isEnabled ? "ACTIVE · 15 SEC" : "STANDBY"}</span></div>
+            <div className="flex items-center gap-2 text-slate-400"><Activity className="h-3.5 w-3.5 text-cyan-300" />Continuous tick: {formatTime(settings?.continuousLastTickAt)}</div>
             <div className="flex items-center gap-2 text-slate-400"><Clock3 className="h-3.5 w-3.5 text-violet-300" />{formatTime(settings?.lastRunAt)}</div>
             {settings?.lastError && <div className="flex items-start gap-2 rounded-lg border border-rose-400/20 bg-rose-400/5 p-2 text-rose-200"><CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />{settings.lastError}</div>}
           </div>

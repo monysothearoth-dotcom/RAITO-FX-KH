@@ -163,6 +163,7 @@ export const autoSignalSettings = mysqlTable("auto_signal_settings", {
   minRiskReward: double("minRiskReward").notNull().default(1.8),
   scheduleCronTaskUid: varchar("scheduleCronTaskUid", { length: 65 }),
   lastRunAt: timestamp("lastRunAt"),
+  continuousLastTickAt: timestamp("continuousLastTickAt"),
   lastError: varchar("lastError", { length: 512 }),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
