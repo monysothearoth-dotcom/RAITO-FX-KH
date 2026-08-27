@@ -343,6 +343,12 @@ export async function getAutoSignalSettings(userId: number) {
   return (await db.select().from(autoSignalSettings).where(eq(autoSignalSettings.userId, userId)).limit(1))[0];
 }
 
+export async function listEnabledAutoSignalSettings() {
+  const db = await getDb();
+  if (!db) return [];
+  return db.select().from(autoSignalSettings).where(eq(autoSignalSettings.isEnabled, 1));
+}
+
 export async function findAutoSignalSettingsByTaskUid(taskUid: string) {
   const db = await getDb();
   if (!db) return undefined;

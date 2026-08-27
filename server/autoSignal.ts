@@ -75,7 +75,11 @@ function resolveSymbolPrice(prices: Record<string, AutoSignalPrice>, symbol: "XA
   return symbol === "XAUUSD" ? prices["OANDA:XAUUSD"] : prices["BINANCE:BTCUSDT"];
 }
 
+const autoSignalHistoryCache = new Map<"XAUUSD" | "BTCUSD", { expiresAt: number; closes: number[] }>();
+
 export async function fetchAutoSignalHistoricalCloses(symbol: "XAUUSD" | "BTCUSD"): Promise<number[]> {
+  const cached = autoSignalHistoryCache.get(symbol);
+  if (cached && cached.expiresAt > Date.now()) return cached.closes;
   const yahooSymbol = symbol === "XAUUSD" ? "GC=F" : "BTC-USD";
   const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1h&range=1mo`, {
     headers: { "User-Agent": "RaitoFXPro/1.0" },
@@ -84,7 +88,9 @@ export async function fetchAutoSignalHistoricalCloses(symbol: "XAUUSD" | "BTCUSD
   if (!response.ok) throw new Error(`Historical ${symbol} data unavailable (${response.status})`);
   const payload = await response.json() as { chart?: { result?: Array<{ indicators?: { quote?: Array<{ close?: Array<number | null> }> } }> } };
   const closes = payload.chart?.result?.[0]?.indicators?.quote?.[0]?.close || [];
-  return closes.map(Number).filter((value) => Number.isFinite(value) && value > 0).slice(-120);
+  const normalized = closes.map(Number).filter((value) => Number.isFinite(value) && value > 0).slice(-120);
+  autoSignalHistoryCache.set(symbol, { closes: normalized, expiresAt: Date.now() + 5 * 60_000 });
+  return normalized;
 }
 
 function percentageChange(from: number, to: number) {
@@ -294,6 +300,7 @@ export async function runAutoSignalMonitor(input: {
     const events = await input.fetchCalendar().catch(() => [] as EconomicCalendarEvent[]);
     const eventRisk = events.some((event) => event.impact === "high" && event.currency === "USD" && typeof event.timestamp === "number" && event.timestamp > now && event.timestamp - now <= 60 * 60_000);
     let resolved = 0;
+    const activeSymbols = new Set<string>();
     for (const signal of await input.listOpen(input.settings.userId)) {
       const live = signal.symbol === "XAUUSD" ? xau : btc;
       if (!live) continue;
@@ -306,6 +313,7 @@ export async function runAutoSignalMonitor(input: {
         resolved += 1;
       } else {
         await input.touch(input.settings.userId, signal.id);
+        activeSymbols.add(signal.symbol);
       }
     }
     const thresholds: AutoSignalThresholds = { minConfidence: input.settings.minConfidence, minScore: input.settings.minScore, minRiskReward: input.settings.minRiskReward };
@@ -321,6 +329,7 @@ export async function runAutoSignalMonitor(input: {
     const preNewsCandidates = buildGoldPreNewsCandidates(events, xau, now);
     let created = 0;
     for (const deterministicCandidate of [...technicalCandidates, ...preNewsCandidates]) {
+      if (activeSymbols.has(deterministicCandidate.symbol)) continue;
       const review = input.review ? await input.review(deterministicCandidate) : { approved: true, provider: "deterministic", note: "No external AI review configured." };
       if (!review.approved) continue;
       const candidate = { ...deterministicCandidate, rationale: `${deterministicCandidate.rationale} Reviewer: ${review.provider}. ${review.note}`.slice(0, 2000) };

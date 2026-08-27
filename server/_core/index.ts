@@ -13,8 +13,9 @@ import { callWithProviderFallback, parseStructuredAiJson } from "../aiFallback";
 import { GEMINI_GENERATE_URL, GEMINI_MODEL } from "../aiConfig";
 import { normalizeSignalPayload } from "../signal";
 import { buildHeadlineEvidenceForSymbol, buildMarketWatchConsensus, buildMarketWatchValidationPrompt, inferWatchDomain, type WatchCandidate } from "../marketWatch";
-import { claimAutoSignalDelivery, createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalDeliveryFailed, markAutoSignalDeliverySent, markAutoSignalRun, markTelegramNewsRun, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
+import { claimAutoSignalDelivery, createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listEnabledAutoSignalSettings, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalDeliveryFailed, markAutoSignalDeliverySent, markAutoSignalRun, markTelegramNewsRun, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
 import { fetchAutoSignalHistoricalCloses, runAutoSignalMonitor } from "../autoSignal";
+import { createSingleFlightPoller, runEnabledAutoSignalMonitors } from "../continuousAutoSignal";
 import { runScheduledTelegramDelivery, sendTelegramNewsMessage, telegramNewsFingerprint, type TelegramNewsFetchResult, type TelegramNewsItem } from "../telegramNews";
 import { translateTelegramNewsItemsToKhmer } from "../telegramTranslation";
 import { analyzeNewsEffect, buildPreReleaseSignals, buildVerifiedEventEvidence, fetchPublicEconomicCalendar, filterPreReleaseSignals, formatPreReleaseSignalMessage, highImpactSignalFingerprint, selectUndeliveredPreReleaseSignals } from "../highImpactNews";
@@ -138,6 +139,39 @@ async function fetchLiveMarketPrices(): Promise<Record<string, LivePrice>> {
   return prices;
 }
 
+const autoSignalCalendarCache: { expiresAt: number; events: Awaited<ReturnType<typeof fetchPublicEconomicCalendar>> } = { expiresAt: 0, events: [] };
+
+async function fetchAutoSignalMarketPrices(): Promise<Record<string, LivePrice>> {
+  const prices: Record<string, LivePrice> = {};
+  await Promise.all([
+    fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { signal: AbortSignal.timeout(8_000) }).then(async (response) => {
+      if (!response.ok) throw new Error(`Binance BTCUSDT unavailable (${response.status})`);
+      const row = await response.json() as { lastPrice?: string; priceChange?: string; priceChangePercent?: string; highPrice?: string; lowPrice?: string };
+      const price = safeNumber(row.lastPrice);
+      if (price > 0) prices["BINANCE:BTCUSDT"] = { price, change: safeNumber(row.priceChange), changePercent: safeNumber(row.priceChangePercent), high: safeNumber(row.highPrice, price), low: safeNumber(row.lowPrice, price) };
+    }).catch(async () => {
+      const fallback: Record<string, LivePrice> = await fetchCoinGeckoCryptoPrices(ENV.coinGeckoApiKey).catch(() => ({} as Record<string, LivePrice>));
+      const quote = fallback["BINANCE:BTCUSDT"];
+      if (quote) prices["BINANCE:BTCUSDT"] = quote;
+    }),
+    fetch("https://api.gold-api.com/price/XAU", { signal: AbortSignal.timeout(8_000) }).then(async (response) => {
+      if (!response.ok) throw new Error(`Gold XAU unavailable (${response.status})`);
+      const row = await response.json() as { price?: number };
+      const price = safeNumber(row.price);
+      if (price > 0) prices["OANDA:XAUUSD"] = { price, change: 0, changePercent: 0, high: price, low: price };
+    }).catch(() => undefined),
+  ]);
+  return prices;
+}
+
+async function fetchAutoSignalCalendar() {
+  if (autoSignalCalendarCache.expiresAt > Date.now()) return autoSignalCalendarCache.events;
+  const events = await fetchPublicEconomicCalendar();
+  autoSignalCalendarCache.events = events;
+  autoSignalCalendarCache.expiresAt = Date.now() + 60_000;
+  return events;
+}
+
 function yahooSymbolForTradingView(symbol: string): string {
   const clean = symbol.split(':').pop()?.toUpperCase() || symbol.toUpperCase();
   if (clean === 'XAUUSD') return 'GC=F';
@@ -242,6 +276,26 @@ async function reviewAutoSignalWithBackendProviders(candidate: { symbol: string;
     }
   }
   return { approved: true, provider: "deterministic-fallback", note: `AI review unavailable; retained deterministic confluence gate (${failures.map((failure) => failure.split(":")[0]).join(", ") || "no-provider"}).` };
+}
+
+async function runConfiguredAutoSignalMonitor(settings: { userId: number; isEnabled: number; minConfidence: number; minScore: number; minRiskReward: number } | undefined, fetchPrices = fetchAutoSignalMarketPrices) {
+  return runAutoSignalMonitor({
+    settings,
+    fetchPrices,
+    fetchHistorical: fetchAutoSignalHistoricalCloses,
+    fetchCalendar: fetchAutoSignalCalendar,
+    listOpen: listOpenAutoSignals,
+    create: createAutoSignal,
+    resolve: resolveAutoSignal,
+    touch: touchAutoSignal,
+    listDeliveryQueue: listPendingAutoSignalDeliveries,
+    claimDelivery: claimAutoSignalDelivery,
+    review: reviewAutoSignalWithBackendProviders,
+    send: (text) => sendTelegramNewsMessage(ENV.autoSignalTelegramBotToken, ENV.autoSignalTelegramChatId, text),
+    markDeliverySent: markAutoSignalDeliverySent,
+    markDeliveryFailed: markAutoSignalDeliveryFailed,
+    markRun: markAutoSignalRun,
+  });
 }
 
 type NewsCategory = "forex" | "crypto";
@@ -487,23 +541,7 @@ async function startServer() {
       const cronUser = await sdk.authenticateRequest(req);
       if (!cronUser.isCron || !cronUser.taskUid) return res.status(403).json({ error: "cron-only" });
       const settings = await findAutoSignalSettingsByTaskUid(cronUser.taskUid);
-      const result = await runAutoSignalMonitor({
-        settings,
-        fetchPrices: fetchLiveMarketPrices,
-        fetchHistorical: fetchAutoSignalHistoricalCloses,
-        fetchCalendar: fetchPublicEconomicCalendar,
-        listOpen: listOpenAutoSignals,
-        create: createAutoSignal,
-        resolve: resolveAutoSignal,
-        touch: touchAutoSignal,
-        listDeliveryQueue: listPendingAutoSignalDeliveries,
-        claimDelivery: claimAutoSignalDelivery,
-        review: reviewAutoSignalWithBackendProviders,
-        send: (text) => sendTelegramNewsMessage(ENV.autoSignalTelegramBotToken, ENV.autoSignalTelegramChatId, text),
-        markDeliverySent: markAutoSignalDeliverySent,
-        markDeliveryFailed: markAutoSignalDeliveryFailed,
-        markRun: markAutoSignalRun,
-      });
+      const result = await runConfiguredAutoSignalMonitor(settings, fetchAutoSignalMarketPrices);
       return res.json(result);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Auto Signal Analyze monitor failed";
@@ -742,6 +780,23 @@ Return strict JSON with recommendation (BUY or SELL), confidence (0-100), entryP
 
   server.listen(port, () => {
     console.log(`Server running on http://localhost:${port}/`);
+    if (process.env.NODE_ENV === "production") {
+      const worker = createSingleFlightPoller({
+        intervalMs: 15_000,
+        run: async () => {
+          const result = await runEnabledAutoSignalMonitors({
+            listSettings: listEnabledAutoSignalSettings,
+            fetchPrices: fetchAutoSignalMarketPrices,
+            runMonitor: (settings, fetchPrices) => runConfiguredAutoSignalMonitor(settings, fetchPrices),
+            onMonitorError: (settings, error) => console.error(`[AutoSignal] continuous monitor failed for user ${settings.userId}`, error instanceof Error ? error.message : error),
+          });
+          if (result.failures) console.warn(`[AutoSignal] continuous monitor cycle completed with ${result.failures} failure(s)`);
+        },
+        onError: (error) => console.error("[AutoSignal] continuous worker failed", error instanceof Error ? error.message : error),
+      });
+      worker.start();
+      console.log("[AutoSignal] continuous 15-second monitoring worker started");
+    }
   });
 }
 

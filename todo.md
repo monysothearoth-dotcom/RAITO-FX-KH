@@ -105,4 +105,6 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Redesign Auto Signal lifecycle Telegram messages with a clean, aggressive Raito-FX Pro trading format.
 - [x] Make Khmer translation complete and reliable for every News Alert item, with safe English fallback only on full-batch failure.
 - [x] Redesign News Impact Telegram alerts with concise, high-contrast trading language and clear market-action context.
-- [ ] Add automated coverage and validate the updated Telegram workflows, schedule behavior, server build, and responsive monitoring UI.
+- [x] Add automated coverage and validate the updated Telegram workflows, schedule behavior, server build, and responsive monitoring UI.
+- [ ] Activate sub-minute Auto Signal monitoring on the approved always-on host without creating duplicate delivery loops.
+- [ ] Validate continuous monitoring cadence, Telegram dispatch safety, and owner-visible delivery health after publication.
