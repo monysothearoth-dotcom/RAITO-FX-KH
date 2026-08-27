@@ -175,6 +175,7 @@ export const autoSignals = mysqlTable("auto_signals", {
   id: int("id").autoincrement().primaryKey(),
   userId: int("userId").notNull(),
   fingerprint: varchar("fingerprint", { length: 191 }).notNull(),
+  activeKey: varchar("activeKey", { length: 96 }),
   source: mysqlEnum("source", ["TECHNICAL", "PRE_NEWS"]).notNull(),
   symbol: varchar("symbol", { length: 32 }).notNull(),
   direction: mysqlEnum("direction", ["BUY", "SELL"]).notNull(),
@@ -201,6 +202,7 @@ export const autoSignals = mysqlTable("auto_signals", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => [
   uniqueIndex("auto_signal_user_fingerprint_unique").on(table.userId, table.fingerprint),
+  uniqueIndex("auto_signal_active_key_unique").on(table.activeKey),
   index("auto_signal_user_status_index").on(table.userId, table.status),
   index("auto_signal_user_opened_index").on(table.userId, table.openedAt),
 ]);
@@ -210,8 +212,13 @@ export const autoSignalDeliveries = mysqlTable("auto_signal_deliveries", {
   userId: int("userId").notNull(),
   signalId: int("signalId").notNull(),
   deliveryType: mysqlEnum("deliveryType", ["SIGNAL", "OUTCOME"]).notNull(),
+  status: mysqlEnum("status", ["PENDING", "SENDING", "SENT", "FAILED", "UNKNOWN"]).notNull().default("SENT"),
+  attemptCount: int("attemptCount").notNull().default(1),
+  attemptedAt: timestamp("attemptedAt"),
+  lastError: varchar("lastError", { length: 512 }),
   deliveredAt: timestamp("deliveredAt").defaultNow().notNull(),
 }, (table) => [
   uniqueIndex("auto_signal_delivery_unique").on(table.signalId, table.deliveryType),
   index("auto_signal_delivery_user_index").on(table.userId, table.deliveredAt),
+  index("auto_signal_delivery_status_index").on(table.userId, table.status),
 ]);

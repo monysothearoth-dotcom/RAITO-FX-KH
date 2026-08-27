@@ -39,10 +39,12 @@ describe("high-impact news analysis", () => {
     const signals = filterPreReleaseSignals(buildPreReleaseSignals(event, now, 15), ["XAUUSD"]);
     expect(signals).toHaveLength(1);
     const message = formatPreReleaseSignalMessage(signals);
-    expect(message).toContain("HIGH IMPACT · XAUUSD");
-    expect(message).toContain("NEWS SIGNAL: BUY");
-    expect(message).toContain("Invalidation:");
-    expect(message).toContain("Risk:");
+    expect(message).toContain("RAITO-FX PRO  |  HIGH-IMPACT ALERT");
+    expect(message).toContain("🚨 HIGH-IMPACT EVENT  |  XAUUSD");
+    expect(message).toContain("NEWS BIAS: 🟢 BUY");
+    expect(message).toContain("INVALIDATION:");
+    expect(message).toContain("RISK CONTROL:");
+    expect(message).toContain("WAIT FOR PRICE CONFIRMATION");
   });
 
   it("suppresses duplicate pre-release signals after the first delivery", () => {

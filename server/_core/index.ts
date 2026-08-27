@@ -13,7 +13,7 @@ import { callWithProviderFallback, parseStructuredAiJson } from "../aiFallback";
 import { GEMINI_GENERATE_URL, GEMINI_MODEL } from "../aiConfig";
 import { normalizeSignalPayload } from "../signal";
 import { buildHeadlineEvidenceForSymbol, buildMarketWatchConsensus, buildMarketWatchValidationPrompt, inferWatchDomain, type WatchCandidate } from "../marketWatch";
-import { createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalRun, markTelegramNewsRun, recordAutoSignalDelivery, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
+import { claimAutoSignalDelivery, createAutoSignal, findAutoSignalSettingsByTaskUid, findTelegramSettingsByTaskUid, listOpenAutoSignals, listPendingAutoSignalDeliveries, listTelegramNewsDeliveries, markAutoSignalDeliveryFailed, markAutoSignalDeliverySent, markAutoSignalRun, markTelegramNewsRun, recordTelegramNewsDeliveries, resolveAutoSignal, touchAutoSignal } from "../db";
 import { fetchAutoSignalHistoricalCloses, runAutoSignalMonitor } from "../autoSignal";
 import { runScheduledTelegramDelivery, sendTelegramNewsMessage, telegramNewsFingerprint, type TelegramNewsFetchResult, type TelegramNewsItem } from "../telegramNews";
 import { translateTelegramNewsItemsToKhmer } from "../telegramTranslation";
@@ -497,9 +497,11 @@ async function startServer() {
         resolve: resolveAutoSignal,
         touch: touchAutoSignal,
         listDeliveryQueue: listPendingAutoSignalDeliveries,
+        claimDelivery: claimAutoSignalDelivery,
         review: reviewAutoSignalWithBackendProviders,
         send: (text) => sendTelegramNewsMessage(ENV.autoSignalTelegramBotToken, ENV.autoSignalTelegramChatId, text),
-        recordDelivery: recordAutoSignalDelivery,
+        markDeliverySent: markAutoSignalDeliverySent,
+        markDeliveryFailed: markAutoSignalDeliveryFailed,
         markRun: markAutoSignalRun,
       });
       return res.json(result);

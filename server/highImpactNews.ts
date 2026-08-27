@@ -177,12 +177,14 @@ export function selectUndeliveredPreReleaseSignals(signals: PreReleaseSignal[], 
 
 export function formatPreReleaseSignalMessage(signals: PreReleaseSignal[]): string {
   const blocks = signals.map((signal) => [
-    `[HIGH IMPACT · ${signal.instrument}]`,
-    `⏱ ${signal.minutesUntil} min before ${signal.event} (${signal.currency})`,
-    `📣 NEWS SIGNAL: ${signal.direction} · Confidence ${signal.confidence}%`,
-    signal.rationale,
-    `Invalidation: ${signal.invalidation}`,
-    `Risk: ${signal.riskWarning}`,
+    `🚨 HIGH-IMPACT EVENT  |  ${signal.instrument}`,
+    `RELEASE WINDOW: ${signal.minutesUntil} MIN  |  ${signal.event} (${signal.currency})`,
+    `NEWS BIAS: ${signal.direction === "BUY" ? "🟢 BUY" : "🔴 SELL"}  |  Confidence ${signal.confidence}%`,
+    "━━━━━━━━━━━━━━━━━━━━",
+    `PLAN: ${signal.rationale}`,
+    `INVALIDATION: ${signal.invalidation}`,
+    `RISK CONTROL: ${signal.riskWarning}`,
+    "STATUS: PRE-RELEASE ONLY — WAIT FOR PRICE CONFIRMATION",
   ].join("\n"));
-  return ["Raito-FX Pro", "High-Impact News Alert", "━━━━━━━━━━━━━━━━━━━━", blocks.join("\n\n━━━━━━━━━━━━━━━━━━━━\n\n")].join("\n\n").slice(0, 4000);
+  return ["RAITO-FX PRO  |  HIGH-IMPACT ALERT", "VOLATILITY WINDOW — PLAN, DO NOT CHASE", "━━━━━━━━━━━━━━━━━━━━", blocks.join("\n\n━━━━━━━━━━━━━━━━━━━━\n\n")].join("\n\n").slice(0, 4000);
 }

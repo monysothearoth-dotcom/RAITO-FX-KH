@@ -402,16 +402,23 @@ export async function createAutoSignal(userId: number, input: Omit<typeof autoSi
   if (!db) throw new Error("Database is not available");
   const existing = (await db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.fingerprint, input.fingerprint))).limit(1))[0];
   if (existing) return { signal: existing, created: false };
-  await db.insert(autoSignals).values({ userId, ...input });
+  const activeKey = `${userId}:${input.symbol.toUpperCase()}`;
+  try {
+    await db.insert(autoSignals).values({ userId, ...input, activeKey });
+  } catch (error) {
+    const active = (await db.select().from(autoSignals).where(eq(autoSignals.activeKey, activeKey)).limit(1))[0];
+    if (active) return { signal: active, created: false };
+    throw error;
+  }
   const signal = (await db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.fingerprint, input.fingerprint))).limit(1))[0];
   if (!signal) throw new Error("Auto signal was not persisted");
   return { signal, created: true };
 }
 
-export async function resolveAutoSignal(userId: number, signalId: number, input: { status: "TP_HIT" | "SL_HIT"; outcomePrice: number; outcomeDetails: string }) {
+export async function resolveAutoSignal(userId: number, signalId: number, input: { status: "TP_HIT" | "SL_HIT" | "EXPIRED"; outcomePrice: number; outcomeDetails: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.update(autoSignals).set({ ...input, resolvedAt: new Date(), lastEvaluatedAt: new Date() }).where(and(eq(autoSignals.id, signalId), eq(autoSignals.userId, userId), eq(autoSignals.status, "OPEN")));
+  await db.update(autoSignals).set({ ...input, activeKey: null, resolvedAt: new Date(), lastEvaluatedAt: new Date() }).where(and(eq(autoSignals.id, signalId), eq(autoSignals.userId, userId), eq(autoSignals.status, "OPEN")));
   return (await db.select().from(autoSignals).where(and(eq(autoSignals.id, signalId), eq(autoSignals.userId, userId))).limit(1))[0];
 }
 
@@ -423,10 +430,13 @@ export async function touchAutoSignal(userId: number, signalId: number) {
 
 export async function listPendingAutoSignalDeliveries(userId: number) {
   const [signals, deliveries] = await Promise.all([listAutoSignals(userId), listAutoSignalDeliveries(userId)]);
-  const delivered = new Set(deliveries.map((delivery) => `${delivery.signalId}:${delivery.deliveryType}`));
+  const deliveryByKey = new Map(deliveries.map((delivery) => [`${delivery.signalId}:${delivery.deliveryType}`, delivery]));
   return signals.flatMap((signal) => {
-    const types: Array<"SIGNAL" | "OUTCOME"> = signal.status === "OPEN" ? ["SIGNAL"] : ["SIGNAL", "OUTCOME"];
-    return types.filter((type) => !delivered.has(`${signal.id}:${type}`)).map((deliveryType) => ({ signal, deliveryType }));
+    const types: Array<"SIGNAL" | "OUTCOME"> = signal.status === "OPEN" ? ["SIGNAL"] : signal.status === "TP_HIT" || signal.status === "SL_HIT" ? ["SIGNAL", "OUTCOME"] : [];
+    return types.filter((type) => {
+      const delivery = deliveryByKey.get(`${signal.id}:${type}`);
+      return !delivery || delivery.status === "PENDING" || delivery.status === "FAILED";
+    }).map((deliveryType) => ({ signal, deliveryType }));
   });
 }
 
@@ -437,20 +447,46 @@ export async function listAutoSignalDeliveries(userId: number) {
 
 export async function getAutoSignalDeliveryHealth(userId: number) {
   const [signals, deliveries] = await Promise.all([listAutoSignals(userId), listAutoSignalDeliveries(userId)]);
-  const delivered = new Set(deliveries.map((delivery) => `${delivery.signalId}:${delivery.deliveryType}`));
-  const expected = signals.flatMap((signal) => signal.status === "OPEN" ? [`${signal.id}:SIGNAL`] : [`${signal.id}:SIGNAL`, `${signal.id}:OUTCOME`]);
+  const delivered = new Set(deliveries.filter((delivery) => delivery.status === "SENT").map((delivery) => `${delivery.signalId}:${delivery.deliveryType}`));
+  const expected = signals.flatMap((signal) => signal.status === "OPEN" ? [`${signal.id}:SIGNAL`] : signal.status === "TP_HIT" || signal.status === "SL_HIT" ? [`${signal.id}:SIGNAL`, `${signal.id}:OUTCOME`] : []);
   return {
     signals: signals.length,
     open: signals.filter((signal) => signal.status === "OPEN").length,
-    signalDeliveries: deliveries.filter((delivery) => delivery.deliveryType === "SIGNAL").length,
-    outcomeDeliveries: deliveries.filter((delivery) => delivery.deliveryType === "OUTCOME").length,
+    signalDeliveries: deliveries.filter((delivery) => delivery.deliveryType === "SIGNAL" && delivery.status === "SENT").length,
+    outcomeDeliveries: deliveries.filter((delivery) => delivery.deliveryType === "OUTCOME" && delivery.status === "SENT").length,
     pending: expected.filter((key) => !delivered.has(key)).length,
-    lastDeliveredAt: deliveries[0]?.deliveredAt ?? null,
+    retrying: deliveries.filter((delivery) => delivery.status === "FAILED" || delivery.status === "PENDING").length,
+    dispatching: deliveries.filter((delivery) => delivery.status === "SENDING").length,
+    uncertain: deliveries.filter((delivery) => delivery.status === "UNKNOWN").length,
+    lastDeliveredAt: deliveries.find((delivery) => delivery.status === "SENT")?.deliveredAt ?? null,
   };
 }
 
-export async function recordAutoSignalDelivery(userId: number, signalId: number, deliveryType: "SIGNAL" | "OUTCOME") {
+export async function claimAutoSignalDelivery(userId: number, signalId: number, deliveryType: "SIGNAL" | "OUTCOME") {
   const db = await getDb();
   if (!db) throw new Error("Database is not available");
-  await db.insert(autoSignalDeliveries).values({ userId, signalId, deliveryType }).onDuplicateKeyUpdate({ set: { deliveredAt: new Date() } });
+  const now = new Date();
+  const result = await db.execute(sql`
+    INSERT INTO auto_signal_deliveries (userId, signalId, deliveryType, status, attemptCount, attemptedAt, lastError)
+    VALUES (${userId}, ${signalId}, ${deliveryType}, 'SENDING', 1, ${now}, NULL)
+    ON DUPLICATE KEY UPDATE
+      status = IF(status IN ('PENDING', 'FAILED'), 'SENDING', status),
+      attemptCount = IF(status IN ('PENDING', 'FAILED'), attemptCount + 1, attemptCount),
+      attemptedAt = IF(status IN ('PENDING', 'FAILED'), VALUES(attemptedAt), attemptedAt),
+      lastError = IF(status IN ('PENDING', 'FAILED'), NULL, lastError)
+  `);
+  const header = (Array.isArray(result) ? result[0] : result) as { affectedRows?: number };
+  return Number(header?.affectedRows || 0) > 0;
+}
+
+export async function markAutoSignalDeliverySent(userId: number, signalId: number, deliveryType: "SIGNAL" | "OUTCOME") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(autoSignalDeliveries).set({ status: "SENT", deliveredAt: new Date(), lastError: null }).where(and(eq(autoSignalDeliveries.userId, userId), eq(autoSignalDeliveries.signalId, signalId), eq(autoSignalDeliveries.deliveryType, deliveryType), eq(autoSignalDeliveries.status, "SENDING")));
+}
+
+export async function markAutoSignalDeliveryFailed(userId: number, signalId: number, deliveryType: "SIGNAL" | "OUTCOME", error: string, status: "FAILED" | "UNKNOWN" = "FAILED") {
+  const db = await getDb();
+  if (!db) throw new Error("Database is not available");
+  await db.update(autoSignalDeliveries).set({ status, lastError: error.slice(0, 512) }).where(and(eq(autoSignalDeliveries.userId, userId), eq(autoSignalDeliveries.signalId, signalId), eq(autoSignalDeliveries.deliveryType, deliveryType), eq(autoSignalDeliveries.status, "SENDING")));
 }

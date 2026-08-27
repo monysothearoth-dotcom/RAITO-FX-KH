@@ -10,20 +10,20 @@ describe("Telegram news delivery helpers", () => {
     expect(selected).toEqual([forex]);
   });
 
-  it("formats a compact labelled message without secrets", () => {
+  it("formats a compact aggressive market-impact message without secrets", () => {
     const effectAnalysis = { affectedInstruments: ["BTCUSD", "XAUUSD"], direction: "BUY" as const, expectedEffect: "Risk appetite may support crypto while safe-haven demand remains conditional", impact: "high" as const, risk: "High-impact headline risk", confidence: 72, invalidation: "Invalid if price rejects the first reaction" };
     const message = formatTelegramNewsMessage([{ ...crypto, khmerTitle: "ការផ្លាស់ប្តូរថ្លៃផ្តល់មូលនិធិ Bitcoin", effectAnalysis }, forex]);
-    expect(message).toContain("Market Live Charts\n\nForex & Crypto News Brief");
-    expect(message).toContain("[CRYPTO · BTC]");
-    expect(message).toContain("[FOREX · EURUSD]");
+    expect(message).toContain("RAITO-FX PRO  |  MARKET IMPACT FEED");
+    expect(message).toContain("⚡ HIGH CRYPTO · BTC");
+    expect(message).toContain("⚡ MARKET FOREX · EURUSD");
     expect(message).toContain("🇰🇭 ការផ្លាស់ប្តូរថ្លៃផ្តល់មូលនិធិ Bitcoin");
-    expect(message).toContain("🇬🇧 Bitcoin funding changes");
-    expect(message).toContain("Effect: 🟢Buy (Bullish 📈)⬆️");
-    expect(message).toContain("Why: Risk appetite may support crypto while safe-haven demand remains conditional");
-    expect(message).not.toContain("Invalidation:");
+    expect(message).toContain("EN: Bitcoin funding changes");
+    expect(message).toContain("MARKET BIAS: 🟢 BULLISH BIAS");
+    expect(message).toContain("PLAN: Risk appetite may support crypto while safe-haven demand remains conditional");
+    expect(message).toContain("RISK: High-impact headline risk");
     expect(message).not.toContain("Confidence 72%");
-    expect(message).toContain("Source: Source A");
-    expect(message).toContain("Link: https://example.test/btc");
+    expect(message).toContain("SOURCE: Source A");
+    expect(message).toContain("DETAIL: https://example.test/btc");
     expect(message.length).toBeGreaterThan(0);
     expect(message.length).toBeLessThanOrEqual(4000);
     expect(message).not.toContain("TELEGRAM_BOT_TOKEN");
@@ -45,16 +45,16 @@ describe("Telegram news delivery helpers", () => {
     const missing = { ...forex, khmerTitle: "ព័ត៌មាន Forex" };
     const message = formatTelegramNewsMessage([mixed, missing]);
     expect(message).toContain("🇰🇭 ព័ត៌មានគ្រីបតូ");
-    expect(message).toContain("Effect: ⚪Normal (No Effect🚫)🔄");
-    expect(message).toContain("Why: Conflicting signals require confirmation");
-    expect(message).toContain("🇬🇧 EUR/USD reacts to inflation");
-    expect(message).toContain("Source: Source B");
-    expect(message).toContain("Link: https://example.test/eur");
+    expect(message).toContain("MARKET BIAS: ⚪ NO CLEAR BIAS");
+    expect(message).toContain("PLAN: Conflicting signals require confirmation");
+    expect(message).toContain("EN: EUR/USD reacts to inflation");
+    expect(message).toContain("SOURCE: Source B");
+    expect(message).toContain("DETAIL: https://example.test/eur");
 
     const send = vi.fn(async () => undefined);
     const result = await runScheduledTelegramDelivery({ settings: { userId: 42, isEnabled: 1 }, fetchNews: async () => [missing], listDelivered: async () => [], send, record: async () => undefined, markRun: async () => undefined });
     expect(result).toMatchObject({ status: 200, body: { sent: 1 } });
-    expect(send.mock.calls[0][0]).toContain("🇬🇧 EUR/USD reacts to inflation");
+    expect(send.mock.calls[0][0]).toContain("EN: EUR/USD reacts to inflation");
   });
 
   it("keeps direction analysis when Khmer translation fails", async () => {
@@ -62,17 +62,17 @@ describe("Telegram news delivery helpers", () => {
     const item = { ...forex, effectAnalysis: { affectedInstruments: ["EURUSD"], direction: "SELL" as const, expectedEffect: "EUR weakness may pressure EURUSD", impact: "high" as const, risk: "Volatility can reverse the first move", confidence: 64 } };
     const result = await runScheduledTelegramDelivery({ settings: { userId: 42, isEnabled: 1 }, fetchNews: async () => [item], listDelivered: async () => [], send, record: async () => undefined, markRun: async () => undefined, translate: async () => { throw new Error("translation unavailable"); } });
     expect(result).toMatchObject({ status: 200, body: { sent: 1 } });
-    expect(send.mock.calls[0][0]).toContain("Effect: 🔴Sell (Bearish 📉)⬇️");
-    expect(send.mock.calls[0][0]).toContain("Why: EUR weakness may pressure EURUSD");
-    expect(send.mock.calls[0][0]).toContain("🇬🇧 EUR/USD reacts to inflation");
+    expect(send.mock.calls[0][0]).toContain("MARKET BIAS: 🔴 BEARISH BIAS");
+    expect(send.mock.calls[0][0]).toContain("PLAN: EUR weakness may pressure EURUSD");
+    expect(send.mock.calls[0][0]).toContain("EN: EUR/USD reacts to inflation");
   });
 
   it("falls back to English when Khmer translation fails", async () => {
     const send = vi.fn(async () => undefined);
     const result = await runScheduledTelegramDelivery({ settings: { userId: 42, isEnabled: 1 }, fetchNews: async () => [forex], listDelivered: async () => [], send, record: async () => undefined, markRun: async () => undefined, translate: async () => { throw new Error("translation unavailable"); } });
     expect(result).toMatchObject({ status: 200, body: { sent: 1 } });
-    expect(send.mock.calls[0][0]).toContain("[FOREX · EURUSD]");
-    expect(send.mock.calls[0][0]).toContain("🇬🇧 EUR/USD reacts to inflation");
+    expect(send.mock.calls[0][0]).toContain("⚡ MARKET FOREX · EURUSD");
+    expect(send.mock.calls[0][0]).toContain("EN: EUR/USD reacts to inflation");
     expect(send.mock.calls[0][0]).not.toContain("🇰🇭");
   });
 

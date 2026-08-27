@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { buildGoldPreNewsCandidates, diagnoseHighConfidenceSetup, evaluateHighConfidenceSetup, evaluateSignalOutcome, runAutoSignalMonitor, type AutoSignalCandidate, type AutoSignalPrice, type PersistedAutoSignal } from "./autoSignal";
+import { describe, expect, it, vi } from "vitest";
+import { buildGoldPreNewsCandidates, diagnoseHighConfidenceSetup, evaluateHighConfidenceSetup, evaluateSignalOutcome, formatAutoSignalTelegramMessage, runAutoSignalMonitor, shouldExpireAutoSignal, type AutoSignalCandidate, type AutoSignalPrice, type PersistedAutoSignal } from "./autoSignal";
 
 const thresholds = { minConfidence: 78, minScore: 82, minRiskReward: 1.8 };
 const qualifiedPrice: AutoSignalPrice = { price: 109, change: 1, changePercent: 1, high: 110, low: 100 };
@@ -36,8 +36,10 @@ describe("Auto Signal Analyze engine", () => {
       resolve: async () => undefined,
       touch: async () => undefined,
       listDeliveryQueue: async () => [],
+      claimDelivery: async () => true,
       send: async (text) => { telegramMessages.push(text); },
-      recordDelivery: async () => undefined,
+      markDeliverySent: async () => undefined,
+      markDeliveryFailed: async () => undefined,
       markRun: async () => undefined,
       now: Date.UTC(2026, 7, 21, 12),
     });
@@ -51,6 +53,15 @@ describe("Auto Signal Analyze engine", () => {
     const signal = persisted(candidate);
     expect(evaluateSignalOutcome(signal, candidate.takeProfit + 0.5)).toMatchObject({ status: "TP_HIT" });
     expect(evaluateSignalOutcome({ ...signal, direction: "SELL", stopLoss: 112, takeProfit: 104 }, 112.5)).toMatchObject({ status: "SL_HIT" });
+  });
+
+  it("closes stale setups without generating a misleading new entry or outcome alert", () => {
+    const candidate = evaluateHighConfidenceSetup({ symbol: "XAUUSD", price: qualifiedPrice, historicalCloses: bullishHistory, thresholds })!;
+    const technical = persisted(candidate);
+    const preNews = persisted({ ...candidate, source: "PRE_NEWS" }, 2);
+    expect(shouldExpireAutoSignal(technical, new Date(technical.openedAt).getTime() + 6 * 60 * 60_000 - 1)).toBe(false);
+    expect(shouldExpireAutoSignal(technical, new Date(technical.openedAt).getTime() + 6 * 60 * 60_000)).toBe(true);
+    expect(shouldExpireAutoSignal(preNews, new Date(preNews.openedAt).getTime() + 75 * 60_000)).toBe(true);
   });
 
   it("creates a Gold pre-news candidate exactly fifteen minutes before a high-impact USD event", () => {
@@ -80,8 +91,10 @@ describe("Auto Signal Analyze engine", () => {
       resolve: async () => undefined,
       touch: async () => undefined,
       listDeliveryQueue: async () => websiteSignals.filter((signal) => !recordedDeliveries.includes(`${signal.id}:SIGNAL`)).map((signal) => ({ signal, deliveryType: "SIGNAL" as const })),
+      claimDelivery: async (_userId, signalId, deliveryType) => !recordedDeliveries.includes(`${signalId}:${deliveryType}`),
       send: async (text) => { telegramMessages.push(text); },
-      recordDelivery: async (_userId, signalId, deliveryType) => { recordedDeliveries.push(`${signalId}:${deliveryType}`); },
+      markDeliverySent: async (_userId, signalId, deliveryType) => { recordedDeliveries.push(`${signalId}:${deliveryType}`); },
+      markDeliveryFailed: async () => undefined,
       markRun: async () => undefined,
       now: Date.UTC(2026, 7, 21, 12),
     });
@@ -91,6 +104,61 @@ describe("Auto Signal Analyze engine", () => {
     expect(telegramMessages[0]).toContain(websiteSignals[0].symbol);
     expect(recordedDeliveries).toEqual(["1:SIGNAL"]);
     expect(result.diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({ symbol: "XAUUSD", eligible: true, reason: "eligible" })]));
+  });
+
+  it("does not send a queued signal when another monitor already claimed that delivery", async () => {
+    const candidate = evaluateHighConfidenceSetup({ symbol: "XAUUSD", price: qualifiedPrice, historicalCloses: bullishHistory, thresholds })!;
+    const send = vi.fn(async () => undefined);
+    const result = await runAutoSignalMonitor({
+      settings: { userId: 7, isEnabled: 1, ...thresholds, minScore: 99 },
+      fetchPrices: async () => ({ "OANDA:XAUUSD": qualifiedPrice }),
+      fetchHistorical: async () => bullishHistory,
+      fetchCalendar: async () => [],
+      listOpen: async () => [],
+      create: async (_userId, newCandidate) => ({ signal: persisted(newCandidate), created: true }),
+      resolve: async () => undefined,
+      touch: async () => undefined,
+      listDeliveryQueue: async () => [{ signal: persisted(candidate), deliveryType: "SIGNAL" as const }],
+      claimDelivery: async () => false,
+      send,
+      markDeliverySent: async () => undefined,
+      markDeliveryFailed: async () => undefined,
+      markRun: async () => undefined,
+    });
+    expect(result).toMatchObject({ delivered: 0, deliveryFailures: 0 });
+    expect(send).not.toHaveBeenCalled();
+  });
+
+  it("marks an unconfirmed Telegram response as unknown instead of retrying and confusing followers", async () => {
+    const candidate = evaluateHighConfidenceSetup({ symbol: "XAUUSD", price: qualifiedPrice, historicalCloses: bullishHistory, thresholds })!;
+    const failed: Array<{ status?: string }> = [];
+    const result = await runAutoSignalMonitor({
+      settings: { userId: 7, isEnabled: 1, ...thresholds, minScore: 99 },
+      fetchPrices: async () => ({ "OANDA:XAUUSD": qualifiedPrice }),
+      fetchHistorical: async () => bullishHistory,
+      fetchCalendar: async () => [],
+      listOpen: async () => [],
+      create: async (_userId, newCandidate) => ({ signal: persisted(newCandidate), created: true }),
+      resolve: async () => undefined,
+      touch: async () => undefined,
+      listDeliveryQueue: async () => [{ signal: persisted(candidate), deliveryType: "SIGNAL" as const }],
+      claimDelivery: async () => true,
+      send: async () => { throw Object.assign(new Error("network timeout"), { deliveryMayHaveOccurred: true }); },
+      markDeliverySent: async () => undefined,
+      markDeliveryFailed: async (_userId, _signalId, _deliveryType, _error, status) => { failed.push({ status }); },
+      markRun: async () => undefined,
+    });
+    expect(result).toMatchObject({ delivered: 0, deliveryFailures: 1 });
+    expect(failed).toEqual([{ status: "UNKNOWN" }]);
+  });
+
+  it("formats a decisive but risk-bounded Auto Signal message without inventing an execution", () => {
+    const candidate = evaluateHighConfidenceSetup({ symbol: "XAUUSD", price: qualifiedPrice, historicalCloses: bullishHistory, thresholds })!;
+    const message = formatAutoSignalTelegramMessage(persisted(candidate), "SIGNAL");
+    expect(message).toContain("RAITO-FX PRO  |  AUTO SIGNAL");
+    expect(message).toContain("SETUP ACTIVE — WAIT FOR PRICE CONFIRMATION");
+    expect(message).toContain("R:R 1:2.00");
+    expect(message).not.toContain("trade execution instruction");
   });
 
   it("suppresses publication when the backend AI reviewer rejects a deterministic candidate", async () => {
@@ -110,8 +178,10 @@ describe("Auto Signal Analyze engine", () => {
       resolve: async () => undefined,
       touch: async () => undefined,
       listDeliveryQueue: async () => [],
+      claimDelivery: async () => true,
       send: async () => undefined,
-      recordDelivery: async () => undefined,
+      markDeliverySent: async () => undefined,
+      markDeliveryFailed: async () => undefined,
       markRun: async () => undefined,
       now: Date.UTC(2026, 7, 21, 12),
     });

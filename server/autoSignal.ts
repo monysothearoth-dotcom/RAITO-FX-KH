@@ -192,6 +192,12 @@ export function evaluateSignalOutcome(signal: Pick<PersistedAutoSignal, "directi
   return null;
 }
 
+export function shouldExpireAutoSignal(signal: Pick<PersistedAutoSignal, "source" | "openedAt" | "status">, now = Date.now()) {
+  if (signal.status !== "OPEN") return false;
+  const maximumAgeMs = signal.source === "PRE_NEWS" ? 75 * 60_000 : 6 * 60 * 60_000;
+  return now - new Date(signal.openedAt).getTime() >= maximumAgeMs;
+}
+
 export function buildGoldPreNewsCandidates(events: EconomicCalendarEvent[], price: AutoSignalPrice | undefined, now = Date.now()): AutoSignalCandidate[] {
   if (!price?.price) return [];
   return events.flatMap((event) => buildPreReleaseSignals(event, now, 15))
@@ -223,28 +229,36 @@ export function buildGoldPreNewsCandidates(events: EconomicCalendarEvent[], pric
 
 export function formatAutoSignalTelegramMessage(signal: PersistedAutoSignal, deliveryType: AutoSignalDeliveryType) {
   if (deliveryType === "OUTCOME") {
+    const targetHit = signal.status === "TP_HIT";
     return [
-      "Raito-FX Pro",
-      "Auto Signal Outcome",
+      "RAITO-FX PRO  |  AUTO SIGNAL",
       "━━━━━━━━━━━━━━━━━━━━",
-      `[${signal.status}] ${signal.symbol} ${signal.direction}`,
-      `Entry: ${signal.entryPrice}`,
-      `TP: ${signal.takeProfit} · SL: ${signal.stopLoss}`,
-      `Resolved price: ${signal.outcomePrice ?? "—"}`,
-      signal.outcomeDetails || "Outcome was recorded by the persistent monitor.",
+      `${targetHit ? "🎯 TARGET HIT" : "🛑 STOP HIT"}  |  ${signal.symbol} ${signal.direction}`,
+      `Entry: ${signal.entryPrice}  →  Exit: ${signal.outcomePrice ?? "—"}`,
+      `TP: ${signal.takeProfit}  |  SL: ${signal.stopLoss}`,
+      "━━━━━━━━━━━━━━━━━━━━",
+      `STATUS: ${targetHit ? "POSITION TARGET RECORDED" : "POSITION STOP RECORDED"}`,
+      `R:R Plan: 1:${signal.riskReward.toFixed(2)}  |  Quality: ${signal.confidence}%`,
+      signal.outcomeDetails || "The monitored price reached the defined risk level.",
+      "Monitor record updated. This is not an execution confirmation.",
     ].join("\n").slice(0, 4000);
   }
+  const directionLabel = signal.direction === "BUY" ? "🟢 BUY" : "🔴 SELL";
   return [
-    "Raito-FX Pro",
-    signal.source === "PRE_NEWS" ? "Gold Pre-News Signal" : "Auto Signal Analyze",
+    "RAITO-FX PRO  |  AUTO SIGNAL",
     "━━━━━━━━━━━━━━━━━━━━",
-    `[${signal.source}] ${signal.symbol} ${signal.direction}`,
+    `${directionLabel} SETUP  |  ${signal.symbol}`,
+    `MODE: ${signal.source === "PRE_NEWS" ? "HIGH-IMPACT PRE-NEWS" : "TECHNICAL CONFLUENCE"}`,
+    "━━━━━━━━━━━━━━━━━━━━",
+    "ENTRY PLAN",
     `Entry: ${signal.entryPrice}`,
-    `TP: ${signal.takeProfit} · SL: ${signal.stopLoss}`,
-    `Confidence: ${signal.confidence}% · Confluence: ${signal.intelligenceScore}/100 · R:R ${signal.riskReward.toFixed(2)}`,
-    signal.newsEvent ? `Event: ${signal.newsEvent}` : undefined,
-    signal.rationale,
-    `Risk: ${signal.warning || "No trade is guaranteed; use independent risk controls."}`,
+    `Stop:  ${signal.stopLoss}`,
+    `Target: ${signal.takeProfit}`,
+    `R:R 1:${signal.riskReward.toFixed(2)}  |  Confidence ${signal.confidence}%  |  Confluence ${signal.intelligenceScore}/100`,
+    signal.newsEvent ? `EVENT RISK: ${signal.newsEvent}` : undefined,
+    "━━━━━━━━━━━━━━━━━━━━",
+    "STATUS: SETUP ACTIVE — WAIT FOR PRICE CONFIRMATION",
+    signal.warning || "Risk control is mandatory. This is analysis, not a trade execution instruction.",
   ].filter(Boolean).join("\n").slice(0, 4000);
 }
 
@@ -255,12 +269,14 @@ export async function runAutoSignalMonitor(input: {
   fetchCalendar: () => Promise<EconomicCalendarEvent[]>;
   listOpen: (userId: number) => Promise<PersistedAutoSignal[]>;
   create: (userId: number, candidate: AutoSignalCandidate) => Promise<{ signal: PersistedAutoSignal; created: boolean }>;
-  resolve: (userId: number, signalId: number, outcome: { status: "TP_HIT" | "SL_HIT"; outcomePrice: number; outcomeDetails: string }) => Promise<PersistedAutoSignal | undefined>;
+  resolve: (userId: number, signalId: number, outcome: { status: "TP_HIT" | "SL_HIT" | "EXPIRED"; outcomePrice: number; outcomeDetails: string }) => Promise<PersistedAutoSignal | undefined>;
   touch: (userId: number, signalId: number) => Promise<void>;
   listDeliveryQueue: (userId: number) => Promise<Array<{ signal: PersistedAutoSignal; deliveryType: AutoSignalDeliveryType }>>;
+  claimDelivery: (userId: number, signalId: number, deliveryType: AutoSignalDeliveryType) => Promise<boolean>;
   review?: (candidate: AutoSignalCandidate) => Promise<AutoSignalReview>;
   send: (text: string) => Promise<void>;
-  recordDelivery: (userId: number, signalId: number, deliveryType: AutoSignalDeliveryType) => Promise<void>;
+  markDeliverySent: (userId: number, signalId: number, deliveryType: AutoSignalDeliveryType) => Promise<void>;
+  markDeliveryFailed: (userId: number, signalId: number, deliveryType: AutoSignalDeliveryType, error: string, status?: "FAILED" | "UNKNOWN") => Promise<void>;
   markRun: (userId: number, error?: string | null) => Promise<void>;
   now?: number;
 }) {
@@ -284,6 +300,9 @@ export async function runAutoSignalMonitor(input: {
       const outcome = evaluateSignalOutcome(signal, live.price);
       if (outcome) {
         await input.resolve(input.settings.userId, signal.id, outcome);
+        resolved += 1;
+      } else if (shouldExpireAutoSignal(signal, now)) {
+        await input.resolve(input.settings.userId, signal.id, { status: "EXPIRED", outcomePrice: live.price, outcomeDetails: "Signal window expired without reaching the defined target or stop. No new entry notification was sent for this closed setup." });
         resolved += 1;
       } else {
         await input.touch(input.settings.userId, signal.id);
@@ -309,13 +328,22 @@ export async function runAutoSignalMonitor(input: {
       if (result.created) created += 1;
     }
     let delivered = 0;
+    let deliveryFailures = 0;
     for (const pending of await input.listDeliveryQueue(input.settings.userId)) {
-      await input.send(formatAutoSignalTelegramMessage(pending.signal, pending.deliveryType));
-      await input.recordDelivery(input.settings.userId, pending.signal.id, pending.deliveryType);
-      delivered += 1;
+      if (!await input.claimDelivery(input.settings.userId, pending.signal.id, pending.deliveryType)) continue;
+      try {
+        await input.send(formatAutoSignalTelegramMessage(pending.signal, pending.deliveryType));
+        await input.markDeliverySent(input.settings.userId, pending.signal.id, pending.deliveryType);
+        delivered += 1;
+      } catch (error) {
+        deliveryFailures += 1;
+        const message = error instanceof Error ? error.message : "Telegram delivery failed";
+        const uncertain = Boolean((error as { deliveryMayHaveOccurred?: boolean }).deliveryMayHaveOccurred);
+        await input.markDeliveryFailed(input.settings.userId, pending.signal.id, pending.deliveryType, message, uncertain ? "UNKNOWN" : "FAILED");
+      }
     }
-    await input.markRun(input.settings.userId, null);
-    return { ok: true, created, resolved, delivered, diagnostics: technicalAssessments.map((assessment) => assessment.diagnostic), preNewsCandidateCount: preNewsCandidates.length };
+    await input.markRun(input.settings.userId, deliveryFailures ? `${deliveryFailures} Telegram delivery attempt(s) require attention.` : null);
+    return { ok: true, created, resolved, delivered, deliveryFailures, diagnostics: technicalAssessments.map((assessment) => assessment.diagnostic), preNewsCandidateCount: preNewsCandidates.length };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Auto Signal Analyze monitor failed";
     await input.markRun(input.settings.userId, message);

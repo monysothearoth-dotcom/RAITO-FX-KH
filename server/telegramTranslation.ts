@@ -26,8 +26,8 @@ function applyTranslations(items: TelegramNewsItem[], entries: TranslationEntry[
   return items.map((item, index) => ({ ...item, khmerTitle: isUsableKhmerTranslation(translations.get(index)) ? translations.get(index)!.trim() : undefined }));
 }
 
-function hasKhmerTranslation(items: TelegramNewsItem[]) {
-  return items.some((item) => isUsableKhmerTranslation(item.khmerTitle));
+function hasCompleteKhmerTranslation(items: TelegramNewsItem[]) {
+  return items.length > 0 && items.every((item) => isUsableKhmerTranslation(item.khmerTitle));
 }
 
 function translationInstruction(items: TelegramNewsItem[]) {
@@ -72,11 +72,12 @@ export async function translateTelegramNewsItemsToKhmer(items: TelegramNewsItem[
   if (!items.length) return items;
   try {
     const claudeTranslations = await translateWithClaude(items);
-    if (hasKhmerTranslation(claudeTranslations)) return claudeTranslations;
+    if (hasCompleteKhmerTranslation(claudeTranslations)) return claudeTranslations;
+    console.warn("[TelegramNews] Claude Khmer translation was incomplete; trying Gemini fallback for the entire batch");
   } catch (error) {
     console.warn("[TelegramNews] Claude Khmer translation unavailable; trying Gemini fallback", error instanceof Error ? error.message : "unknown error");
   }
   const geminiTranslations = await translateWithGemini(items);
-  if (!hasKhmerTranslation(geminiTranslations)) throw new Error("Khmer translation providers returned no usable Khmer text");
+  if (!hasCompleteKhmerTranslation(geminiTranslations)) throw new Error("Khmer translation providers did not return every requested headline");
   return geminiTranslations;
 }

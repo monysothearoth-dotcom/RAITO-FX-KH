@@ -100,3 +100,9 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Validate the independent-launch archive contents and deliver it as the complete owner handoff.
 - [x] Exclude managed project metadata containing deployment credentials from the independent handoff archive while preserving all portable source and launch files.
 - [x] Deliver the validated complete independent-launch archive as the owner handoff attachment.
+- [x] Audit Auto Signal and News Alert persistence, delivery timing, duplicate prevention, and scheduled-run history.
+- [x] Make Auto Signal Telegram delivery idempotent and prevent repeated or stale signal notifications.
+- [x] Redesign Auto Signal lifecycle Telegram messages with a clean, aggressive Raito-FX Pro trading format.
+- [x] Make Khmer translation complete and reliable for every News Alert item, with safe English fallback only on full-batch failure.
+- [x] Redesign News Impact Telegram alerts with concise, high-contrast trading language and clear market-action context.
+- [ ] Add automated coverage and validate the updated Telegram workflows, schedule behavior, server build, and responsive monitoring UI.

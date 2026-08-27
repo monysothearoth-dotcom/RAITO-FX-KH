@@ -11,6 +11,15 @@ export type TelegramNewsItem = {
   effectAnalysis?: { affectedInstruments: string[]; direction: "BUY" | "SELL" | "MIXED"; expectedEffect: string; impact: "high" | "medium" | "low"; risk: string; confidence?: number; invalidation?: string };
 };
 
+export class TelegramDeliveryUncertainError extends Error {
+  deliveryMayHaveOccurred = true as const;
+
+  constructor(message = "Telegram delivery could not be confirmed") {
+    super(message);
+    this.name = "TelegramDeliveryUncertainError";
+  }
+}
+
 export function telegramNewsFingerprint(item: TelegramNewsItem): string {
   return `${item.category}|${item.url || item.title}|${item.relatedCurrency || ""}`.toLowerCase().slice(0, 191);
 }
@@ -36,20 +45,24 @@ export function formatTelegramNewsMessage(items: TelegramNewsItem[]): string {
   const blocks = items.map((item) => {
     const tag = item.category === "crypto" ? "CRYPTO" : "FOREX";
     const asset = item.relatedCurrency ? ` · ${item.relatedCurrency.toUpperCase()}` : "";
+    const impact = item.effectAnalysis?.impact?.toUpperCase() || "MARKET";
+    const direction = item.effectAnalysis?.direction;
+    const bias = direction === "BUY" ? "🟢 BULLISH BIAS" : direction === "SELL" ? "🔴 BEARISH BIAS" : "⚪ NO CLEAR BIAS";
     const lines = [
-      `[${tag}${asset}]`,
+      `⚡ ${impact} ${tag}${asset}`,
       item.khmerTitle ? `🇰🇭 ${item.khmerTitle}` : undefined,
-      `🇬🇧 ${item.title}`,
-      item.effectAnalysis ? `Effect: ${marketEffectLabel(item.effectAnalysis.direction)}` : undefined,
-      item.effectAnalysis ? `Why: ${item.effectAnalysis.expectedEffect}` : undefined,
-      item.source ? `Source: ${item.source}` : undefined,
-      item.url ? `Link: ${item.url}` : undefined,
+      `EN: ${item.title}`,
+      item.effectAnalysis ? `MARKET BIAS: ${bias}` : undefined,
+      item.effectAnalysis ? `PLAN: ${item.effectAnalysis.expectedEffect}` : undefined,
+      item.effectAnalysis ? `RISK: ${item.effectAnalysis.risk}` : undefined,
+      item.source ? `SOURCE: ${item.source}` : undefined,
+      item.url ? `DETAIL: ${item.url}` : undefined,
     ].filter((line): line is string => Boolean(line));
     return lines.join("\n");
   });
   return [
-    "Market Live Charts",
-    "Forex & Crypto News Brief",
+    "RAITO-FX PRO  |  MARKET IMPACT FEED",
+    "HEADLINE INTELLIGENCE — CONFIRM WITH PRICE",
     "━━━━━━━━━━━━━━━━━━━━",
     blocks.join("\n\n━━━━━━━━━━━━━━━━━━━━\n\n"),
   ].join("\n\n").slice(0, 4000);
@@ -57,12 +70,17 @@ export function formatTelegramNewsMessage(items: TelegramNewsItem[]): string {
 
 export async function sendTelegramNewsMessage(token: string, chatId: string, text: string): Promise<void> {
   if (!token || !chatId) throw new Error("Telegram credentials are not configured");
-  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
-    signal: AbortSignal.timeout(12_000),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text, disable_web_page_preview: true }),
+      signal: AbortSignal.timeout(12_000),
+    });
+  } catch (error) {
+    throw new TelegramDeliveryUncertainError(error instanceof Error ? `Telegram response was not confirmed: ${error.message}` : "Telegram response was not confirmed");
+  }
   const payload = await response.json().catch(() => ({})) as { ok?: boolean; description?: string };
   if (!response.ok || !payload.ok) throw new Error(payload.description || `Telegram send failed (${response.status})`);
 }
