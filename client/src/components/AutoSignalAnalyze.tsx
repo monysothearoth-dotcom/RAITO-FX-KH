@@ -24,6 +24,11 @@ function formatTime(value: Date | string | null | undefined) {
   return Number.isNaN(date.getTime()) ? "No monitor run recorded" : date.toLocaleString();
 }
 
+function formatWorkerInterval(value: number | null | undefined) {
+  if (!value || value < 1) return "Calibrating";
+  return `${(value / 1_000).toFixed(1)} sec cycle`;
+}
+
 export default function AutoSignalAnalyze() {
   const { user } = useAuth();
   const utils = trpc.useUtils();
@@ -64,7 +69,7 @@ export default function AutoSignalAnalyze() {
           </div>
           <div className="flex flex-col gap-2 rounded-2xl border border-slate-700/80 bg-slate-950/75 p-3 text-[11px] shadow-inner xl:min-w-72">
             <div className="flex items-center justify-between gap-4"><span className="font-mono uppercase text-slate-500">Monitor</span><span className={settings?.isEnabled ? "font-black text-emerald-300" : "font-black text-slate-400"}>{settings?.isEnabled ? "ACTIVE · 15 SEC" : "STANDBY"}</span></div>
-            <div className="flex items-center gap-2 text-slate-400"><Activity className="h-3.5 w-3.5 text-cyan-300" />Continuous tick: {formatTime(settings?.continuousLastTickAt)}</div>
+            <div className="flex items-center justify-between gap-2 text-slate-400"><span className="flex min-w-0 items-center gap-2"><Activity className="h-3.5 w-3.5 shrink-0 text-cyan-300" />Continuous tick: {formatTime(settings?.continuousLastTickAt)}</span><span className="shrink-0 font-mono text-[9px] text-cyan-200">{formatWorkerInterval(settings?.continuousLastIntervalMs)}</span></div>
             <div className="flex items-center gap-2 text-slate-400"><Clock3 className="h-3.5 w-3.5 text-violet-300" />{formatTime(settings?.lastRunAt)}</div>
             {settings?.lastError && <div className="flex items-start gap-2 rounded-lg border border-rose-400/20 bg-rose-400/5 p-2 text-rose-200"><CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />{settings.lastError}</div>}
           </div>

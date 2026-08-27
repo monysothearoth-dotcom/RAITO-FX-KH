@@ -1,0 +1,1 @@
+ALTER TABLE `auto_signal_settings` ADD `continuousLastIntervalMs` int;

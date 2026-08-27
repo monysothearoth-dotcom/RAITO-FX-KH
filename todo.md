@@ -106,6 +106,9 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Make Khmer translation complete and reliable for every News Alert item, with safe English fallback only on full-batch failure.
 - [x] Redesign News Impact Telegram alerts with concise, high-contrast trading language and clear market-action context.
 - [x] Add automated coverage and validate the updated Telegram workflows, schedule behavior, server build, and responsive monitoring UI.
-- [ ] Activate sub-minute Auto Signal monitoring on the approved always-on host without creating duplicate delivery loops.
-- [ ] Validate continuous monitoring cadence, Telegram dispatch safety, and owner-visible delivery health after publication.
-- [ ] Add a separate continuous-worker heartbeat timestamp so the owner can distinguish 15-second monitoring from the 60-second fallback schedule.
+- [x] Activate sub-minute Auto Signal monitoring on the approved always-on host without creating duplicate delivery loops.
+- [x] Validate continuous monitoring cadence, Telegram dispatch safety, and owner-visible delivery health after publication.
+- [x] Add a separate continuous-worker heartbeat timestamp so the owner can distinguish 15-second monitoring from the 60-second fallback schedule.
+- [x] Verify at least two consecutive 15-second continuous-worker heartbeat advances after publication.
+- [x] Run a clean post-publication Auto Signal dispatch-state audit and verify the owner dashboard displays the continuous-worker heartbeat.
+- [ ] Tune and prove two consecutive continuous-worker tick intervals near the configured 15-second cadence.

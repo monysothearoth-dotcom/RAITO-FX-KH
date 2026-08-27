@@ -97,7 +97,7 @@ export const appRouter = router({
     list: publicProcedure.query(() => listAutoSignals()),
     status: protectedProcedure.query(async ({ ctx }) => {
       if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) return undefined;
-      return (await getAutoSignalSettings(ctx.user.id)) || { isEnabled: 0, minConfidence: 78, minScore: 82, minRiskReward: 1.8, lastRunAt: null, continuousLastTickAt: null, lastError: null, scheduleCronTaskUid: null };
+      return (await getAutoSignalSettings(ctx.user.id)) || { isEnabled: 0, minConfidence: 78, minScore: 82, minRiskReward: 1.8, lastRunAt: null, continuousLastTickAt: null, continuousLastIntervalMs: null, lastError: null, scheduleCronTaskUid: null };
     }),
     deliveryHealth: protectedProcedure.query(async ({ ctx }) => {
       if (!canManageTelegramNewsAlerts(ctx.user.openId, ENV.ownerOpenId)) throw new TRPCError({ code: "FORBIDDEN", message: "Only the project owner can inspect Auto Signal delivery health." });
