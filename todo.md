@@ -111,4 +111,4 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Add a separate continuous-worker heartbeat timestamp so the owner can distinguish 15-second monitoring from the 60-second fallback schedule.
 - [x] Verify at least two consecutive 15-second continuous-worker heartbeat advances after publication.
 - [x] Run a clean post-publication Auto Signal dispatch-state audit and verify the owner dashboard displays the continuous-worker heartbeat.
-- [ ] Tune and prove two consecutive continuous-worker tick intervals near the configured 15-second cadence.
+- [x] Tune and prove two consecutive continuous-worker tick intervals near the configured 15-second cadence.
