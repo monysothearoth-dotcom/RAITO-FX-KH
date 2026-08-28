@@ -112,3 +112,4 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Verify at least two consecutive 15-second continuous-worker heartbeat advances after publication.
 - [x] Run a clean post-publication Auto Signal dispatch-state audit and verify the owner dashboard displays the continuous-worker heartbeat.
 - [x] Tune and prove two consecutive continuous-worker tick intervals near the configured 15-second cadence.
+- [ ] Publish the latest secret-safe Raito-FX Pro project to GitHub and verify the repository contents.
