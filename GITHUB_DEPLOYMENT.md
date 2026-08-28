@@ -34,7 +34,7 @@ Set these values in the deployment provider's secret manager rather than committ
 | `GEMINI_API_KEY` | Gemini-powered analysis and translation |
 | `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` | Unattended Telegram news delivery |
 
-Use the exact values already configured in the Manus project when deploying there. Never paste them into GitHub.
+Use values from the selected deployment’s encrypted secret manager. Never paste them into GitHub.
 
 ## Install, migrate, test, and build
 
@@ -58,4 +58,4 @@ The server must receive its port from the hosting environment; do not hardcode a
 
 ## Hosting note
 
-The validated published deployment is already live at `https://marketdash-tsbnfxxs.manus.space`. GitHub stores the source; it does not host the running application by itself. If using an external Node host, configure Node 22+, pnpm, the environment variables above, the database, OAuth callback URL, and the persistent scheduler/Heartbeat equivalent required for 60-second Telegram delivery. Manus hosting remains the compatibility-tested deployment target.
+GitHub stores the source; it does not host the running full-stack application by itself. For a Node host, configure Node 22+, pnpm, the environment variables above, the database, the OAuth callback URL, and a protected persistent scheduler for recurring delivery. Choose a host that supports the server process, database connectivity, background execution, and encrypted secrets.

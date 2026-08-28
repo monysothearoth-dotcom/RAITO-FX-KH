@@ -43,7 +43,7 @@ Use this checklist in order. Record the date, owner, and result in your own laun
 
 ## 6. Final Go/No-Go
 
-- [ ] Confirm the current production build and regression suite have passed.
+- [ ] Confirm the production build and regression suite pass for the release under review.
 - [ ] Confirm no active application, authentication, schedule, or delivery errors are present.
 - [ ] Review `SELF_LAUNCH_OPERATIONS.md` and record the owner responsible for daily monitoring.
 - [ ] Keep a rollback point before enabling public visibility or changing core secrets.

@@ -1,55 +1,56 @@
-# Raito-FX Pro — Owner Operations Guide
+# Raito-FX Pro — Operations Guide
 
-## Daily Operating Checks
+This guide describes safe day-to-day operation of a self-managed Raito-FX Pro deployment. Keep operational logs and secret-manager records private, and never include credentials, destination identifiers, session data, or raw provider responses in public issues or screenshots.
 
-Open the production domain as both a signed-out visitor and the project owner. Confirm that the application loads over HTTPS, market cards populate, sign-in completes, and owner-only controls are not visible to ordinary visitors. Review the latest schedule result after any deployment that changes a callback route.
+## Routine Health Checks
+
+Open the deployed application over HTTPS as both a signed-out visitor and an authenticated owner. Confirm that market cards populate, sign-in completes, and protected controls are hidden from ordinary visitors. After changing a scheduled route or provider, inspect the next scheduled execution before enabling normal traffic.
 
 | Surface | Healthy result | Investigate when |
 |---|---|---|
-| Market data | Primary prices and fallback labels load without browser key prompts. | Repeated blank prices or a provider error persists. |
-| News Alert | The latest schedule callback is HTTP 200; settings show no active source outage. | `lastError` is populated, no run time advances, or delivery count stops unexpectedly. |
-| Auto Signal | The monitor callback is HTTP 200 and `lastRunAt` advances. | The schedule reports an error or the control panel shows pending deliveries. |
-| Telegram | News/signal deliveries record successfully when an eligible item exists. | A persisted eligible item exists but no delivery record follows. |
-| AI | The selected analysis returns a cautious, grounded response or visibly uses an allowed fallback. | A provider error is returned without a fallback or credentials were recently replaced. |
+| Market data | Prices and source-status labels load without browser key prompts. | Prices remain blank or an upstream error persists. |
+| News Alert | The protected callback succeeds and the source-health state is clear. | The last error persists, the run time stops advancing, or delivery counts stop unexpectedly. |
+| Auto Signal | The continuous heartbeat advances near its configured interval and delivery health is settled. | The heartbeat becomes stale, pending work accumulates, or the monitor reports an error. |
+| Telegram | An eligible item creates one corresponding delivery record and a settled send state. | A persisted eligible item has no matching delivery or a send state remains uncertain. |
+| AI analysis | The response is grounded, cautious, and visibly identifies uncertainty or an allowed fallback. | A provider fails without fallback or newly rotated credentials are rejected. |
 
 ## Auto Signal Analyze
 
-Auto Signal is selective by design. The current owner settings use a minimum confidence of **78**, confluence score of **82**, and risk/reward of **1.8**. An HTTP 200 monitor response with `created: 0` and `delivered: 0` is normally an eligibility skip, not a Telegram failure.
+Auto Signal is selective by design. It combines deterministic technical, strategy, market-context, and risk/reward checks with a secondary server-side AI review. It monitors configured instruments such as XAU/USD and BTC/USD, stores qualifying setups before delivery, and tracks the lifecycle until a defined outcome or expiry.
 
-Each monitor response includes per-symbol diagnostic information for: live-price availability, historical sample coverage, SMA/EMA directional alignment, high-impact event risk, confidence, confluence, and risk/reward thresholds. Only a qualifying candidate is persisted and placed in the Telegram delivery queue. Do not lower thresholds merely to force messages during a quiet or conflicting market.
+Each monitor cycle should expose diagnostics for live-price availability, historical sample coverage, directional alignment, event-risk suppression, confidence, confluence, and risk/reward thresholds. A successful cycle that creates no signal is normally an eligibility skip, not a Telegram failure. Do not lower thresholds merely to force messages during a quiet or conflicting market.
 
-| Action | Owner procedure |
+| Action | Safe procedure |
 |---|---|
-| Enable monitoring | Sign in as owner, open **Auto Signal Analyze**, review thresholds and the dedicated Telegram destination, then enable monitoring. |
-| Confirm a signal send | Check that a signal record was created first, then confirm its matching delivery record. |
-| No message received | Inspect the monitor diagnostic before checking Telegram. `created: 0` means there was nothing eligible to deliver. |
-| Pause safely | Disable monitoring in the owner control. Existing signals and outcome history remain preserved. |
+| Enable monitoring | Authenticate as an authorized owner, review thresholds and the dedicated Telegram destination, then enable the monitor. |
+| Confirm a signal send | Confirm that a signal record was created first, then inspect the single matching delivery state. |
+| No message received | Read the cycle diagnostics before changing credentials or thresholds. No created record means there was nothing eligible to deliver. |
+| Pause safely | Disable monitoring through the protected owner control. Existing signals and outcomes remain preserved. |
+
+The always-on worker serializes cycles, measures its actual interval, prevents overlapping evaluation, and uses durable active-signal and delivery claims to prevent duplicate sends. A stale setup is expired rather than treated as a fresh entry.
 
 ## News Alert and Khmer Translation
 
-News Alert uses its own Telegram credential pair. It delivers deduplicated market news and uses a Khmer-first Claude translation attempt. If Claude is unavailable or returns unusable Khmer, the backend retries with Gemini. English is kept only if neither translation path returns valid Khmer.
+News Alert uses a separate Telegram credential pair from Auto Signal. It deduplicates market-news items and validates a complete Khmer translation batch before delivery. If the primary translation provider is unavailable or returns unusable Khmer, the backend uses its configured fallback. Retain the original language only when all translation paths fail, and label that condition clearly.
 
-The published News Alert callback is `/api/scheduled/telegram-news`; the current protected Heartbeat is scheduled every 60 seconds. Keep the route protected. For an external host, reproduce the authentication mechanism for the scheduler rather than exposing an unauthenticated endpoint.
+Scheduled news delivery must use a protected route and an authenticated scheduler. For an independent host, reproduce the authentication boundary; never expose an unauthenticated endpoint that can send Telegram messages.
 
-## Provider Status and Decision Rules
+## Provider Decision Rules
 
-| Provider | Use | Decision rule |
-|---|---|---|
-| Alpha Vantage | Server stock fallback | Keep enabled as a backend-only fallback. |
-| CoinGecko | Server crypto fallback | Keep enabled as a backend-only fallback. |
-| Anthropic Claude | Analysis selection and Khmer primary path | The key authenticates, but completions need available API-account credit. Retain Gemini/platform fallback until then. |
-| EODHD | Optional future source | Leave disabled until a token and required license are available. |
+| Provider category | Operating rule |
+|---|---|
+| Market-data fallback | Keep provider credentials server-side, monitor rate limits, and label delayed or unavailable data. |
+| AI provider | Use server-side routing and retain a safe fallback when an optional provider is unavailable or lacks account capacity. |
+| Optional data source | Do not enable until credentials, symbol coverage, delay characteristics, usage limits, and licensing are confirmed. |
 
-## Deployment and Schedule Change Procedure
+## Deployment and Schedule Changes
 
-Publish the application before validating any changed scheduled route. Then inspect the next scheduled execution. A fresh HTTP 200 confirms the current route, while an older HTTP 404 is historical evidence from a previous deployment. If a pre-existing schedule retains a stale path, refresh that schedule and inspect the following run before creating a second task.
+Publish or deploy the application before validating a changed callback route. Inspect the newest execution for the updated route and confirm its response, timing, and error state. If an existing scheduler points to a stale route, update that existing schedule rather than creating duplicate schedules.
+
+Before enabling recurring delivery, run sign-in, market-data, news-filter, analysis, owner-control, database-write, Telegram, and scheduler smoke tests. Keep migrations under change control and maintain a tested rollback plan.
 
 ## Incident Triage
 
-1. **Homepage unavailable:** check hosting health, DNS/domain settings, and current deployment logs.
-2. **Owner cannot sign in:** confirm final OAuth redirect URI, origin, and owner identity configuration.
-3. **No Telegram message:** determine whether a persisted signal/news item exists; then check the relevant delivery record, bot credential, and chat identifier.
-4. **Claude error:** verify the API-account completion credit. The application should continue via safe fallback paths.
-5. **External host scheduler failure:** pause the scheduler, verify route authentication, perform a controlled owner-authorized run, then resume.
+For an unavailable homepage, check host health, DNS, and application logs. For sign-in failures, verify the final OAuth redirect URI and origin configuration. For missing Telegram messages, first determine whether an eligible record exists, then inspect the matching delivery state without exposing tokens or destination identifiers. For AI errors, verify the provider account and allow the configured fallback to operate. For scheduler failures, pause recurring delivery, verify route authentication, perform a controlled authorized run, and resume only after the result is understood.
 
-Do not remove or disclose logs containing identifiers, tokens, chat IDs, session information, or provider response bodies without review.
+> Raito-FX Pro is intended for research and educational use. Market information may be delayed, incomplete, or incorrect. The application does not execute trades or provide personalised financial advice.
