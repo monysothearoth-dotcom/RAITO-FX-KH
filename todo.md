@@ -114,4 +114,6 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Tune and prove two consecutive continuous-worker tick intervals near the configured 15-second cadence.
 - [x] Publish the latest secret-safe Raito-FX Pro project to GitHub and verify the repository contents.
 - [x] Change RAITO-FX-KH GitHub repository visibility from private to public and verify the result.
-- [ ] Review and sanitize README and public launch documentation by removing internal operational details before pushing to the public GitHub repository.
+- [x] Review and sanitize README and public launch documentation by removing internal operational details before pushing to the public GitHub repository.
+- [ ] Review and sanitize remaining public launch docs, including release notes and the independent-launch manifest, for owner-only or internal operational details.
+- [ ] Run a broad repository-wide public-documentation audit and re-verify the sanitized files on GitHub.
