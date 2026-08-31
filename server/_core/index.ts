@@ -143,24 +143,12 @@ const autoSignalCalendarCache: { expiresAt: number; events: Awaited<ReturnType<t
 
 async function fetchAutoSignalMarketPrices(): Promise<Record<string, LivePrice>> {
   const prices: Record<string, LivePrice> = {};
-  await Promise.all([
-    fetch("https://api.binance.com/api/v3/ticker/24hr?symbol=BTCUSDT", { signal: AbortSignal.timeout(8_000) }).then(async (response) => {
-      if (!response.ok) throw new Error(`Binance BTCUSDT unavailable (${response.status})`);
-      const row = await response.json() as { lastPrice?: string; priceChange?: string; priceChangePercent?: string; highPrice?: string; lowPrice?: string };
-      const price = safeNumber(row.lastPrice);
-      if (price > 0) prices["BINANCE:BTCUSDT"] = { price, change: safeNumber(row.priceChange), changePercent: safeNumber(row.priceChangePercent), high: safeNumber(row.highPrice, price), low: safeNumber(row.lowPrice, price) };
-    }).catch(async () => {
-      const fallback: Record<string, LivePrice> = await fetchCoinGeckoCryptoPrices(ENV.coinGeckoApiKey).catch(() => ({} as Record<string, LivePrice>));
-      const quote = fallback["BINANCE:BTCUSDT"];
-      if (quote) prices["BINANCE:BTCUSDT"] = quote;
-    }),
-    fetch("https://api.gold-api.com/price/XAU", { signal: AbortSignal.timeout(8_000) }).then(async (response) => {
-      if (!response.ok) throw new Error(`Gold XAU unavailable (${response.status})`);
-      const row = await response.json() as { price?: number };
-      const price = safeNumber(row.price);
-      if (price > 0) prices["OANDA:XAUUSD"] = { price, change: 0, changePercent: 0, high: price, low: price };
-    }).catch(() => undefined),
-  ]);
+  await fetch("https://api.gold-api.com/price/XAU", { signal: AbortSignal.timeout(8_000) }).then(async (response) => {
+    if (!response.ok) throw new Error(`Gold XAU unavailable (${response.status})`);
+    const row = await response.json() as { price?: number };
+    const price = safeNumber(row.price);
+    if (price > 0) prices["OANDA:XAUUSD"] = { price, change: 0, changePercent: 0, high: price, low: price };
+  }).catch(() => undefined);
   return prices;
 }
 
@@ -259,9 +247,23 @@ export async function callUserSuppliedAI(provider: string, apiKey: string, messa
 }
 
 async function reviewAutoSignalWithBackendProviders(candidate: { symbol: string; direction: string; entryPrice: number; stopLoss: number; takeProfit: number; confidence: number; technicalScore: number; strategyScore: number; fundamentalScore: number; intelligenceScore: number; rationale: string }) {
+  const reviewInput = {
+    asset: "Gold spot / XAUUSD",
+    setup: candidate,
+    requiredChecks: [
+      "SMA20, SMA50, and EMA20 directional alignment",
+      "directional momentum agrees with the setup",
+      "RSI14 is supportive but not an exhaustion chase",
+      "price is positioned constructively inside the recent range",
+      "volatility is tradeable rather than abnormal",
+      "the market session is open for Gold liquidity",
+      "no supplied high-impact USD event invalidates the entry window",
+      "stop, target, and risk/reward are internally consistent",
+    ],
+  };
   const messages = [
-    { role: "system", content: "You are a cautious market-analysis reviewer. Do not give financial advice, infer unsupplied news, or claim certainty. Review only the supplied deterministic setup. Return strict JSON: {\"approve\":boolean,\"note\":string}. Approve only when the stated technical, strategy, fundamental, and intelligence scores are internally consistent; the risk/reward is valid; the rationale states a conditional scenario and invalidation; and no claim exceeds the supplied evidence. Reject vague, contradictory, or unsupported setups." },
-    { role: "user", content: JSON.stringify(candidate) },
+    { role: "system", content: "You are the final Gold (XAU/USD) signal quality reviewer for a selective monitoring engine. Do not give financial advice, infer unsupplied news, invent prices, or claim certainty. Review only the supplied deterministic setup and required checks. Reject the setup if any required check is absent, contradictory, overextended, event-risky, or unsupported by the supplied evidence. Approve only a conditional, risk-bounded setup with valid entry/stop/target geometry and a rationale that states invalidation. Return strict JSON only: {\"approve\":boolean,\"note\":string,\"riskFlags\":string[]}. Keep note under 280 characters." },
+    { role: "user", content: JSON.stringify(reviewInput) },
   ];
   const providers = [["gemini", ENV.geminiApiKey], ["openai", ENV.openAiApiKey], ["anthropic", ENV.anthropicApiKey], ["grok", ENV.openRouterApiKey]] as const;
   const failures: string[] = [];
@@ -270,7 +272,8 @@ async function reviewAutoSignalWithBackendProviders(candidate: { symbol: string;
     try {
       const parsed = parseStructuredAiJson(await callUserSuppliedAI(provider, apiKey, messages));
       if (!parsed || typeof parsed.approve !== "boolean") throw new Error("invalid-review");
-      return { approved: parsed.approve, provider, note: typeof parsed.note === "string" ? parsed.note.slice(0, 280) : "Backend AI review completed." };
+      const riskFlags = Array.isArray(parsed.riskFlags) ? parsed.riskFlags.filter((flag: unknown): flag is string => typeof flag === "string").slice(0, 3) : [];
+      return { approved: parsed.approve, provider, note: `${typeof parsed.note === "string" ? parsed.note : "Backend Gold review completed."}${riskFlags.length ? ` Flags: ${riskFlags.join(", ")}` : ""}`.slice(0, 280) };
     } catch (error) {
       failures.push(`${provider}:${error instanceof Error ? error.message : "request-failed"}`);
     }

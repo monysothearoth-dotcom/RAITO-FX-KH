@@ -15,6 +15,7 @@ describe("Auto Signal Analyze engine", () => {
     const suppressed = evaluateHighConfidenceSetup({ symbol: "BTCUSD", price: { price: 100, change: 0.1, changePercent: 0.1, high: 101, low: 99 }, historicalCloses: bullishHistory, thresholds, now: Date.UTC(2026, 7, 21, 12) });
     expect(qualified).toMatchObject({ source: "TECHNICAL", symbol: "XAUUSD", direction: "BUY", status: "OPEN" });
     expect(qualified?.intelligenceScore).toBeGreaterThanOrEqual(82);
+    expect(qualified?.rationale).toContain("Gold confluence");
     expect(suppressed).toBeNull();
   });
 
@@ -187,5 +188,15 @@ describe("Auto Signal Analyze engine", () => {
     });
     expect(result.created).toBe(0);
     expect(created).toHaveLength(0);
+  });
+
+  it("suppresses Gold setups outside the active weekday session", () => {
+    const diagnostic = diagnoseHighConfidenceSetup({ symbol: "XAUUSD", price: qualifiedPrice, historicalCloses: bullishHistory, thresholds, now: Date.UTC(2026, 7, 22, 12) });
+    expect(diagnostic.eligible).toBe(false);
+    expect(diagnostic.reason).toContain("gold_session_closed");
+  });
+
+  it("rejects a non-Gold runtime candidate even if an unsupported caller bypasses TypeScript", () => {
+    expect(evaluateHighConfidenceSetup({ symbol: "BTCUSD", price: qualifiedPrice, historicalCloses: bullishHistory, thresholds } as never)).toBeNull();
   });
 });

@@ -9,7 +9,7 @@ Raito-FX Pro is a full-stack market-analysis workspace for traders who want stru
 | Capability | Description |
 |---|---|
 | Market workspace | Unified asset watchlists, live market context, charts, and grouped market views. |
-| Auto Signal Analyze | Selective XAU/USD and BTC/USD monitoring with deterministic technical and risk gates, persistent signal lifecycle tracking, and duplicate-safe Telegram delivery. |
+| Auto Signal Analyze | Selective XAU/USD-only monitoring with Gold-specific technical, momentum, volatility, session, and risk gates, persistent signal lifecycle tracking, and duplicate-safe Telegram delivery. |
 | Signal Analyze | Server-managed AI-assisted market review with explicit evidence, uncertainty, invalidation, and risk boundaries. |
 | RAITO Agent | A conversational analysis workspace for structured market questions and decision context. |
 | News and economic events | Verified headline and calendar context with market-impact analysis and Khmer translation support. |
@@ -84,7 +84,11 @@ Provider availability, latency, rate limits, licensing, and market-session cover
 
 ## License
 
-No license is declared yet. Add an explicit license file before accepting external contributions or redistributing the project.
+Raito-FX Pro is released under the [MIT License](LICENSE). The license covers this application source and does not grant rights to third-party trademarks, market-data feeds, AI providers, API services, or provider content referenced by the application.
+
+## Continuous integration
+
+GitHub Actions runs the public-safe type check, deterministic test suite, and production build on pushes to `main` and on pull requests. Credential-dependent integration tests are intentionally excluded because they require private runtime secrets.
 
 ## Disclaimer
 

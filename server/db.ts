@@ -402,14 +402,14 @@ export async function markAutoSignalContinuousTick(userId: number) {
 export async function listAutoSignals(userId?: number) {
   const db = await getDb();
   if (!db) return [];
-  const query = db.select().from(autoSignals).orderBy(desc(autoSignals.openedAt)).limit(120);
-  return userId ? db.select().from(autoSignals).where(eq(autoSignals.userId, userId)).orderBy(desc(autoSignals.openedAt)).limit(120) : query;
+  const query = db.select().from(autoSignals).where(eq(autoSignals.symbol, "XAUUSD")).orderBy(desc(autoSignals.openedAt)).limit(120);
+  return userId ? db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.symbol, "XAUUSD"))).orderBy(desc(autoSignals.openedAt)).limit(120) : query;
 }
 
 export async function listOpenAutoSignals(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.status, "OPEN"))).orderBy(desc(autoSignals.openedAt)).limit(40);
+  return db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.symbol, "XAUUSD"), eq(autoSignals.status, "OPEN"))).orderBy(desc(autoSignals.openedAt)).limit(40);
 }
 
 export async function createAutoSignal(userId: number, input: Omit<typeof autoSignals.$inferInsert, "id" | "userId" | "createdAt" | "updatedAt" | "openedAt" | "resolvedAt" | "outcomePrice" | "outcomeDetails" | "lastEvaluatedAt">) {
@@ -417,7 +417,8 @@ export async function createAutoSignal(userId: number, input: Omit<typeof autoSi
   if (!db) throw new Error("Database is not available");
   const existing = (await db.select().from(autoSignals).where(and(eq(autoSignals.userId, userId), eq(autoSignals.fingerprint, input.fingerprint))).limit(1))[0];
   if (existing) return { signal: existing, created: false };
-  const activeKey = `${userId}:${input.symbol.toUpperCase()}`;
+  if (input.symbol.toUpperCase() !== "XAUUSD") throw new Error("Auto Signal Analyze supports XAU/USD only");
+  const activeKey = `${userId}:XAUUSD`;
   try {
     await db.insert(autoSignals).values({ userId, ...input, activeKey });
   } catch (error) {

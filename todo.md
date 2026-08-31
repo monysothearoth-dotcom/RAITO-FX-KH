@@ -119,3 +119,15 @@ The Auto Signal and Khmer News Alert delivery items remain blocked on the user p
 - [x] Run a broad repository-wide public-documentation audit and re-verify the sanitized files on GitHub.
 - [x] Fetch the final public GitHub versions of the sanitized documentation and verify their contents against the public-readiness audit.
 - [x] Run the final repository-wide public-doc audit, document acceptable generic matches, and close the GitHub re-verification task.
+- [x] Audit the current Gold/BTC Auto Signal universe, strategy gates, AI review path, and public repository hardening state.
+- [x] Remove BTC from Auto Signal monitoring and add Gold-specific strategy confluence, session filters, and volatility safeguards.
+- [x] Strengthen structured server-side LLM review for XAU/USD with evidence-bound, risk-aware decisions.
+- [x] Add regression coverage and validate Gold-only monitoring, delivery, and dashboard behavior.
+- [x] Add a public license, GitHub Actions checks for type-check/tests/build, and audit public source comments for internal disclosures.
+- [x] Audit the current Gold/BTC Auto Signal universe, strategy gates, AI review path, and public repository hardening state.
+- [x] Remove BTC from Auto Signal monitoring and add Gold-specific strategy confluence, session filters, and volatility safeguards.
+- [x] Strengthen structured server-side LLM review for XAU/USD with evidence-bound, risk-aware decisions.
+- [x] Add regression coverage and validate Gold-only monitoring, delivery, and dashboard behavior.
+- [x] Add a public license, GitHub Actions checks for type-check/tests/build, and audit public source comments for internal disclosures.
+- [x] Add focused Auto Signal dashboard assertions for the XAU/USD-only label, monitoring panel, and empty-state copy.
+- [x] Capture a post-change responsive Auto Signal preview and confirm BTC is not presented in the dashboard.

@@ -22,7 +22,7 @@ export type AutoSignalThresholds = {
 };
 
 export type AutoSignalEligibilityDiagnostic = {
-  symbol: "XAUUSD" | "BTCUSD";
+  symbol: "XAUUSD";
   eligible: boolean;
   reason: string;
   confidence?: number;
@@ -33,7 +33,7 @@ export type AutoSignalEligibilityDiagnostic = {
 export type AutoSignalCandidate = {
   fingerprint: string;
   source: AutoSignalSource;
-  symbol: "XAUUSD" | "BTCUSD";
+  symbol: "XAUUSD";
   direction: AutoSignalDirection;
   status: "OPEN";
   entryPrice: number;
@@ -67,20 +67,20 @@ export type PersistedAutoSignal = Omit<AutoSignalCandidate, "symbol" | "status" 
 
 const clamp = (value: number, min = 0, max = 100) => Math.max(min, Math.min(max, Math.round(value)));
 
-function instrumentRiskFraction(symbol: "XAUUSD" | "BTCUSD") {
-  return symbol === "XAUUSD" ? 0.0025 : 0.006;
+function instrumentRiskFraction() {
+  return 0.0025;
 }
 
-function resolveSymbolPrice(prices: Record<string, AutoSignalPrice>, symbol: "XAUUSD" | "BTCUSD") {
-  return symbol === "XAUUSD" ? prices["OANDA:XAUUSD"] : prices["BINANCE:BTCUSDT"];
+function resolveGoldPrice(prices: Record<string, AutoSignalPrice>) {
+  return prices["OANDA:XAUUSD"];
 }
 
-const autoSignalHistoryCache = new Map<"XAUUSD" | "BTCUSD", { expiresAt: number; closes: number[] }>();
+const autoSignalHistoryCache = new Map<"XAUUSD", { expiresAt: number; closes: number[] }>();
 
-export async function fetchAutoSignalHistoricalCloses(symbol: "XAUUSD" | "BTCUSD"): Promise<number[]> {
+export async function fetchAutoSignalHistoricalCloses(symbol: "XAUUSD"): Promise<number[]> {
   const cached = autoSignalHistoryCache.get(symbol);
   if (cached && cached.expiresAt > Date.now()) return cached.closes;
-  const yahooSymbol = symbol === "XAUUSD" ? "GC=F" : "BTC-USD";
+  const yahooSymbol = "GC=F";
   const response = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(yahooSymbol)}?interval=1h&range=1mo`, {
     headers: { "User-Agent": "RaitoFXPro/1.0" },
     signal: AbortSignal.timeout(12_000),
@@ -117,33 +117,73 @@ export function indicatorSnapshot(currentPrice: number, closes: number[]) {
   return { sampleSize: series.length, last, prior, sma20, sma50, ema20, recentHigh, recentLow, volatility, momentum: percentageChange(prior, last), direction };
 }
 
+function relativeStrengthIndex(closes: number[], period = 14) {
+  if (closes.length <= period) return 50;
+  const changes = closes.slice(1).map((value, index) => value - closes[index]);
+  const window = changes.slice(-period);
+  const gains = window.filter((value) => value > 0).reduce((sum, value) => sum + value, 0) / period;
+  const losses = Math.abs(window.filter((value) => value < 0).reduce((sum, value) => sum + value, 0)) / period;
+  if (!losses) return gains ? 100 : 50;
+  return 100 - (100 / (1 + gains / losses));
+}
+
+function goldSessionGate(now: number) {
+  const date = new Date(now);
+  const day = date.getUTCDay();
+  const hour = date.getUTCHours();
+  return day !== 0 && day !== 6 && !(hour === 21 || hour === 22);
+}
+
+function goldStrategySnapshot(price: AutoSignalPrice, closes: number[], now: number) {
+  const series = [...closes, price.price].filter((value) => Number.isFinite(value) && value > 0);
+  const recent = series.slice(-21);
+  const rangeHigh = recent.length ? Math.max(...recent) : price.price;
+  const rangeLow = recent.length ? Math.min(...recent) : price.price;
+  const range = Math.max(rangeHigh - rangeLow, price.price * 0.001);
+  const rangePosition = (price.price - rangeLow) / range;
+  const rsi14 = relativeStrengthIndex(series, 14);
+  const averageTrueRangeProxy = series.length > 1 ? series.slice(-15).slice(1).reduce((sum, value, index) => sum + Math.abs(value - series.slice(-15)[index]), 0) / Math.min(14, series.length - 1) : 0;
+  const atrPercent = price.price ? (averageTrueRangeProxy / price.price) * 100 : 0;
+  const direction = price.price >= simpleMovingAverage(series, 20) ? "BUY" : "SELL";
+  const trendConfirmed = direction === "BUY" ? price.price > simpleMovingAverage(series, 50) : price.price < simpleMovingAverage(series, 50);
+  const momentumConfirmed = direction === "BUY" ? price.changePercent > 0 : price.changePercent < 0;
+  const rsiConfirmed = direction === "BUY" ? rsi14 >= 52 && rsi14 <= 72 : rsi14 <= 48 && rsi14 >= 28;
+  const structureConfirmed = direction === "BUY" ? rangePosition >= 0.58 : rangePosition <= 0.42;
+  const volatilityHealthy = atrPercent >= 0.02 && atrPercent <= 0.85;
+  return { rsi14, atrPercent, rangePosition, trendConfirmed, momentumConfirmed, rsiConfirmed, structureConfirmed, volatilityHealthy, sessionOpen: goldSessionGate(now) };
+}
+
 export function autoSignalFingerprint(source: AutoSignalSource, symbol: string, direction: AutoSignalDirection, now = Date.now()) {
   const bucket = source === "PRE_NEWS" ? Math.floor(now / 60_000) : Math.floor(now / (4 * 60 * 60_000));
   return `auto-signal|${source}|${symbol}|${direction}|${bucket}`.toLowerCase().slice(0, 191);
 }
 
-export function evaluateHighConfidenceSetup(input: { symbol: "XAUUSD" | "BTCUSD"; price: AutoSignalPrice; historicalCloses: number[]; thresholds: AutoSignalThresholds; eventRisk?: boolean; now?: number }): AutoSignalCandidate | null {
+export function evaluateHighConfidenceSetup(input: { symbol: "XAUUSD"; price: AutoSignalPrice; historicalCloses: number[]; thresholds: AutoSignalThresholds; eventRisk?: boolean; now?: number }): AutoSignalCandidate | null {
   const { symbol, price, thresholds } = input;
+  if ((symbol as string) !== "XAUUSD") return null;
   if (!Number.isFinite(price.price) || price.price <= 0) return null;
   const indicators = indicatorSnapshot(price.price, input.historicalCloses);
   if (!indicators.direction || indicators.sampleSize < 50) return null;
   const direction = indicators.direction;
   const momentum = direction === "BUY" ? indicators.momentum : -indicators.momentum;
-  const structuralRange = Math.max(Math.abs(indicators.recentHigh - indicators.recentLow), price.price * instrumentRiskFraction(symbol));
+  const structuralRange = Math.max(Math.abs(indicators.recentHigh - indicators.recentLow), price.price * instrumentRiskFraction());
   const breakoutDistance = direction === "BUY" ? (price.price - indicators.recentHigh) / structuralRange : (indicators.recentLow - price.price) / structuralRange;
-  const technicalScore = clamp(48 + (momentum >= 0.12 ? 22 : momentum > 0 ? 10 : -20) + (indicators.volatility > 0 && indicators.volatility <= 1.8 ? 18 : 7));
-  const strategyScore = clamp(42 + (breakoutDistance >= -0.1 ? 28 : 0) + (Math.abs(price.changePercent) >= 0.35 ? 16 : 5) + (indicators.volatility <= 2.5 ? 8 : -8));
-  const fundamentalScore = input.eventRisk ? 10 : symbol === "XAUUSD" ? 76 : 64;
-  const intelligenceScore = clamp(technicalScore * 0.45 + strategyScore * 0.35 + fundamentalScore * 0.2);
-  const confidence = clamp(intelligenceScore * 0.8 + (momentum >= 0.2 ? 12 : 3) + (breakoutDistance >= -0.1 ? 5 : 0));
-  const risk = Math.max(price.price * instrumentRiskFraction(symbol), structuralRange * 0.24);
+  const gold = goldStrategySnapshot(price, input.historicalCloses, input.now ?? Date.now());
+  const technicalScore = clamp(44 + (momentum >= 0.12 ? 18 : momentum > 0 ? 8 : -18) + (indicators.volatility > 0 && indicators.volatility <= 1.8 ? 15 : 4));
+  const goldChecks = [gold.trendConfirmed, gold.momentumConfirmed, gold.rsiConfirmed, gold.structureConfirmed, gold.volatilityHealthy, gold.sessionOpen];
+  const goldChecksPassed = goldChecks.filter(Boolean).length;
+  const strategyScore = clamp(30 + goldChecksPassed * 10 + (breakoutDistance >= -0.1 ? 8 : 0));
+  const fundamentalScore = input.eventRisk ? 10 : 80;
+  const intelligenceScore = clamp(technicalScore * 0.35 + strategyScore * 0.45 + fundamentalScore * 0.2);
+  const confidence = clamp(intelligenceScore * 0.78 + (momentum >= 0.2 ? 10 : 2) + (gold.rsiConfirmed ? 4 : 0) + (gold.structureConfirmed ? 4 : 0));
+  const risk = Math.max(price.price * instrumentRiskFraction(), structuralRange * 0.24);
   const entryPrice = price.price;
   const stopLoss = direction === "BUY" ? entryPrice - risk : entryPrice + risk;
   const takeProfit = direction === "BUY" ? entryPrice + risk * 2 : entryPrice - risk * 2;
   const riskReward = 2;
-  const qualifies = !input.eventRisk && confidence >= thresholds.minConfidence && intelligenceScore >= thresholds.minScore && riskReward >= thresholds.minRiskReward;
+  const qualifies = !input.eventRisk && gold.sessionOpen && goldChecksPassed >= 5 && confidence >= thresholds.minConfidence && intelligenceScore >= thresholds.minScore && riskReward >= thresholds.minRiskReward;
   if (!qualifies) return null;
-  const rationale = `${symbol} ${direction} setup passed the configurable confluence gate: technical ${technicalScore}/100 from SMA20/SMA50/EMA20 alignment and ${indicators.momentum.toFixed(2)}% hourly momentum; strategy ${strategyScore}/100 from ${breakoutDistance >= -0.1 ? "recent range breakout/retest structure" : "price-action structure"}; and fundamental context ${fundamentalScore}/100 from the high-impact USD event calendar. The signal is selective by design and is not a forecast or guarantee.`;
+  const rationale = `${symbol} ${direction} Gold confluence passed ${goldChecksPassed}/6 gates: trend ${gold.trendConfirmed ? "aligned" : "mixed"}, momentum ${gold.momentumConfirmed ? "confirmed" : "against"}, RSI14 ${gold.rsi14.toFixed(1)}, range position ${(gold.rangePosition * 100).toFixed(0)}%, volatility proxy ${gold.atrPercent.toFixed(3)}%, and session ${gold.sessionOpen ? "open" : "closed"}. Technical ${technicalScore}/100, strategy ${strategyScore}/100, event context ${fundamentalScore}/100. Conditional setup only; invalidate if structure or risk assumptions fail.`;
   return {
     fingerprint: autoSignalFingerprint("TECHNICAL", symbol, direction, input.now),
     source: "TECHNICAL",
@@ -164,24 +204,30 @@ export function evaluateHighConfidenceSetup(input: { symbol: "XAUUSD" | "BTCUSD"
   };
 }
 
-export function diagnoseHighConfidenceSetup(input: { symbol: "XAUUSD" | "BTCUSD"; price?: AutoSignalPrice; historicalCloses: number[]; thresholds: AutoSignalThresholds; eventRisk?: boolean }): AutoSignalEligibilityDiagnostic {
+export function diagnoseHighConfidenceSetup(input: { symbol: "XAUUSD"; price?: AutoSignalPrice; historicalCloses: number[]; thresholds: AutoSignalThresholds; eventRisk?: boolean; now?: number }): AutoSignalEligibilityDiagnostic {
   const { symbol, price, thresholds } = input;
+  if ((symbol as string) !== "XAUUSD") return { symbol, eligible: false, reason: "unsupported_symbol_gold_only" };
   if (!price || !Number.isFinite(price.price) || price.price <= 0) return { symbol, eligible: false, reason: "live_price_unavailable" };
   const indicators = indicatorSnapshot(price.price, input.historicalCloses);
   if (indicators.sampleSize < 50) return { symbol, eligible: false, reason: `insufficient_historical_data:${indicators.sampleSize}/50` };
   if (!indicators.direction) return { symbol, eligible: false, reason: "no_sma_ema_directional_alignment" };
   const direction = indicators.direction;
   const momentum = direction === "BUY" ? indicators.momentum : -indicators.momentum;
-  const structuralRange = Math.max(Math.abs(indicators.recentHigh - indicators.recentLow), price.price * instrumentRiskFraction(symbol));
+  const structuralRange = Math.max(Math.abs(indicators.recentHigh - indicators.recentLow), price.price * instrumentRiskFraction());
   const breakoutDistance = direction === "BUY" ? (price.price - indicators.recentHigh) / structuralRange : (indicators.recentLow - price.price) / structuralRange;
-  const technicalScore = clamp(48 + (momentum >= 0.12 ? 22 : momentum > 0 ? 10 : -20) + (indicators.volatility > 0 && indicators.volatility <= 1.8 ? 18 : 7));
-  const strategyScore = clamp(42 + (breakoutDistance >= -0.1 ? 28 : 0) + (Math.abs(price.changePercent) >= 0.35 ? 16 : 5) + (indicators.volatility <= 2.5 ? 8 : -8));
-  const fundamentalScore = input.eventRisk ? 10 : symbol === "XAUUSD" ? 76 : 64;
-  const intelligenceScore = clamp(technicalScore * 0.45 + strategyScore * 0.35 + fundamentalScore * 0.2);
-  const confidence = clamp(intelligenceScore * 0.8 + (momentum >= 0.2 ? 12 : 3) + (breakoutDistance >= -0.1 ? 5 : 0));
+  const gold = goldStrategySnapshot(price, input.historicalCloses, input.now ?? Date.now());
+  const technicalScore = clamp(44 + (momentum >= 0.12 ? 18 : momentum > 0 ? 8 : -18) + (indicators.volatility > 0 && indicators.volatility <= 1.8 ? 15 : 4));
+  const goldChecks = [gold.trendConfirmed, gold.momentumConfirmed, gold.rsiConfirmed, gold.structureConfirmed, gold.volatilityHealthy, gold.sessionOpen];
+  const goldChecksPassed = goldChecks.filter(Boolean).length;
+  const strategyScore = clamp(30 + goldChecksPassed * 10 + (breakoutDistance >= -0.1 ? 8 : 0));
+  const fundamentalScore = input.eventRisk ? 10 : 80;
+  const intelligenceScore = clamp(technicalScore * 0.35 + strategyScore * 0.45 + fundamentalScore * 0.2);
+  const confidence = clamp(intelligenceScore * 0.78 + (momentum >= 0.2 ? 10 : 2) + (gold.rsiConfirmed ? 4 : 0) + (gold.structureConfirmed ? 4 : 0));
   const riskReward = 2;
   const reasons = [
     input.eventRisk ? "upcoming_high_impact_usd_event" : null,
+    !gold.sessionOpen ? "gold_session_closed" : null,
+    goldChecksPassed < 5 ? `gold_confluence_${goldChecksPassed}_of_6` : null,
     confidence < thresholds.minConfidence ? `confidence_${confidence}_below_${thresholds.minConfidence}` : null,
     intelligenceScore < thresholds.minScore ? `confluence_${intelligenceScore}_below_${thresholds.minScore}` : null,
     riskReward < thresholds.minRiskReward ? `risk_reward_${riskReward.toFixed(2)}_below_${thresholds.minRiskReward}` : null,
@@ -209,7 +255,7 @@ export function buildGoldPreNewsCandidates(events: EconomicCalendarEvent[], pric
   return events.flatMap((event) => buildPreReleaseSignals(event, now, 15))
     .filter((signal) => signal.instrument === "XAUUSD" && signal.minutesUntil === 15)
     .map((signal) => {
-      const risk = Math.max(price.price * instrumentRiskFraction("XAUUSD"), Math.abs(price.high - price.low) * 0.18);
+      const risk = Math.max(price.price * instrumentRiskFraction(), Math.abs(price.high - price.low) * 0.18);
       return {
         fingerprint: `auto-signal|pre-news|xauusd|${signal.event}|${signal.scheduledAt}`.toLowerCase().slice(0, 191),
         source: "PRE_NEWS" as const,
@@ -271,7 +317,7 @@ export function formatAutoSignalTelegramMessage(signal: PersistedAutoSignal, del
 export async function runAutoSignalMonitor(input: {
   settings?: { userId: number; isEnabled: number; minConfidence: number; minScore: number; minRiskReward: number };
   fetchPrices: () => Promise<Record<string, AutoSignalPrice>>;
-  fetchHistorical: (symbol: "XAUUSD" | "BTCUSD") => Promise<number[]>;
+  fetchHistorical: (symbol: "XAUUSD") => Promise<number[]>;
   fetchCalendar: () => Promise<EconomicCalendarEvent[]>;
   listOpen: (userId: number) => Promise<PersistedAutoSignal[]>;
   create: (userId: number, candidate: AutoSignalCandidate) => Promise<{ signal: PersistedAutoSignal; created: boolean }>;
@@ -290,19 +336,15 @@ export async function runAutoSignalMonitor(input: {
   const now = input.now ?? Date.now();
   try {
     const prices = await input.fetchPrices();
-    const xau = resolveSymbolPrice(prices, "XAUUSD");
-    const btc = resolveSymbolPrice(prices, "BTCUSD");
-    if (!xau && !btc) throw new Error("Live XAU/USD and BTC/USD prices are unavailable");
-    const [xauHistory, btcHistory] = await Promise.all([
-      xau ? input.fetchHistorical("XAUUSD").catch(() => [] as number[]) : Promise.resolve([] as number[]),
-      btc ? input.fetchHistorical("BTCUSD").catch(() => [] as number[]) : Promise.resolve([] as number[]),
-    ]);
+    const xau = resolveGoldPrice(prices);
+    if (!xau) throw new Error("Live XAU/USD price is unavailable");
+    const xauHistory = await input.fetchHistorical("XAUUSD").catch(() => [] as number[]);
     const events = await input.fetchCalendar().catch(() => [] as EconomicCalendarEvent[]);
     const eventRisk = events.some((event) => event.impact === "high" && event.currency === "USD" && typeof event.timestamp === "number" && event.timestamp > now && event.timestamp - now <= 60 * 60_000);
     let resolved = 0;
     const activeSymbols = new Set<string>();
     for (const signal of await input.listOpen(input.settings.userId)) {
-      const live = signal.symbol === "XAUUSD" ? xau : btc;
+      const live = signal.symbol === "XAUUSD" ? xau : undefined;
       if (!live) continue;
       const outcome = evaluateSignalOutcome(signal, live.price);
       if (outcome) {
@@ -317,13 +359,10 @@ export async function runAutoSignalMonitor(input: {
       }
     }
     const thresholds: AutoSignalThresholds = { minConfidence: input.settings.minConfidence, minScore: input.settings.minScore, minRiskReward: input.settings.minRiskReward };
-    const technicalInputs = [
-      { symbol: "XAUUSD" as const, price: xau, historicalCloses: xauHistory, thresholds, eventRisk, now },
-      { symbol: "BTCUSD" as const, price: btc, historicalCloses: btcHistory, thresholds, now },
-    ];
+    const technicalInputs = [{ symbol: "XAUUSD" as const, price: xau, historicalCloses: xauHistory, thresholds, eventRisk, now }];
     const technicalAssessments = technicalInputs.map((assessment) => ({
       diagnostic: diagnoseHighConfidenceSetup(assessment),
-      candidate: assessment.price ? evaluateHighConfidenceSetup(assessment as { symbol: "XAUUSD" | "BTCUSD"; price: AutoSignalPrice; historicalCloses: number[]; thresholds: AutoSignalThresholds; eventRisk?: boolean; now?: number }) : null,
+      candidate: assessment.price ? evaluateHighConfidenceSetup(assessment) : null,
     }));
     const technicalCandidates = technicalAssessments.map((assessment) => assessment.candidate).filter((candidate): candidate is AutoSignalCandidate => Boolean(candidate));
     const preNewsCandidates = buildGoldPreNewsCandidates(events, xau, now);
@@ -352,7 +391,7 @@ export async function runAutoSignalMonitor(input: {
       }
     }
     await input.markRun(input.settings.userId, deliveryFailures ? `${deliveryFailures} Telegram delivery attempt(s) require attention.` : null);
-    return { ok: true, created, resolved, delivered, deliveryFailures, diagnostics: technicalAssessments.map((assessment) => assessment.diagnostic), preNewsCandidateCount: preNewsCandidates.length };
+    return { ok: true, created, resolved, delivered, deliveryFailures, diagnostics: technicalAssessments.map((assessment) => assessment.diagnostic), preNewsCandidateCount: preNewsCandidates.length, monitoredSymbols: ["XAUUSD"] };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Auto Signal Analyze monitor failed";
     await input.markRun(input.settings.userId, message);

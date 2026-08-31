@@ -19,7 +19,7 @@ describe("first-time OAuth account creation", () => {
     const app = { get: vi.fn((_path: string, handler: (req: any, res: any) => Promise<void>) => { callback = handler; }) } as any;
     registerOAuthRoutes(app);
 
-    const state = encodeOAuthState({ redirectUri: "https://marketdash-tsbnfxxs.manus.space/api/oauth/callback", nonce: "nonce-1" });
+    const state = encodeOAuthState({ redirectUri: "https://example.com/api/oauth/callback", nonce: "nonce-1" });
     const response = {
       clearCookie: vi.fn(),
       cookie: vi.fn(),

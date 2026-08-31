@@ -191,12 +191,11 @@ export async function deleteHeartbeatJob(
 }
 
 /**
- * List cron jobs owned by the resolved actor (end-user when `userSession`
- * is set, project owner otherwise) within the current project.
+ * List scheduled jobs owned by the resolved actor (end-user when `userSession`
+ * is set, owner otherwise) within the current application scope.
  *
- * `actorUserId` in the response echoes whose cron list you got back. End-users
- * cannot list other users' crons via this SDK; cross-user inspection is
- * owner-only via the sandbox CLI (`manus-heartbeat list --user-id <uid>`).
+ * `actorUserId` in the response identifies whose schedule was returned. Users
+ * cannot inspect schedules belonging to another account through this SDK.
  */
 export async function listHeartbeatJobs(
   userSession: string,
